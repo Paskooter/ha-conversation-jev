@@ -2,6 +2,8 @@
 
 Observed on 2026-10-03. All devices, classifier responses and identities below are invented. No household changes were made for this fork.
 
+Both exact flat release archives (`jev_assist.zip` and `phoenix.zip`) were extracted into a fresh isolated HA configuration. HA loaded only the extracted source, validated Jev with synthetic provider transport, linked Phoenix through the real isolated TLS broker, changed its selected agent without relinking, and unloaded/reloaded/removed both integrations. No device action was issued during this archive-install check.
+
 | Check | HA 2026.8.1 | HA 2026.9.4 |
 | --- | --- | --- |
 | Jev repository suite | 139 passed | 139 passed |
