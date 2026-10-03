@@ -10,13 +10,13 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from jev_assist.const import (
+from custom_components.jev_assist.const import (
     CONF_GROK_HANDOFF_AGENT_ID,
     GROK_HANDOFF_AGENT_ID,
     GROK_HANDOFF_UNAVAILABLE_SPEECH,
     ROUTE_FAILURE_SPEECH,
 )
-from jev_assist.grok_handoff import (
+from custom_components.jev_assist.grok_handoff import (
     async_converse_kwargs,
     async_handoff_to_conversation_agent,
     async_try_handoff_to_conversation_agent,
@@ -27,9 +27,7 @@ from jev_assist.grok_handoff import (
 
 
 def test_conversation_entity_wires_async_converse() -> None:
-    source = Path("custom_components/jev_assist/conversation.py").read_text(
-        encoding="utf-8"
-    )
+    source = Path("custom_components/jev_assist/conversation.py").read_text(encoding="utf-8")
     assert "async_try_handoff_to_conversation_agent" in source
     assert "conversation.async_converse" in source
     assert "except Exception" in source

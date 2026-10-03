@@ -1,4 +1,4 @@
-typesafe-sdk>=0.6.0
-ha-spacexai-auth @ git+https://github.com/luxus/ha-spacexai-auth.git@main
-pytest>=8.0
-pytest-asyncio>=0.24
+typesafe-sdk==0.7.2
+pytest==9.1.1
+pytest-asyncio==1.4.0
+ruff==0.16.10

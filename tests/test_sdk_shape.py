@@ -6,8 +6,8 @@ import json
 
 from typesafe_sdk import AsyncTypeSafeClient, Choice, Noul, RetryPolicy
 
-from jev_assist.jev_client import build_questions, build_state
-from jev_assist.jev_router import ExposedEntity
+from custom_components.jev_assist.jev_client import build_questions, build_state
+from custom_components.jev_assist.jev_router import ExposedEntity
 
 
 def test_sdk_exports() -> None:

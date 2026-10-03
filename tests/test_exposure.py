@@ -6,10 +6,13 @@ import json
 
 import pytest
 
-from jev_assist.const import EXPOSED_ENTITY_CAP
-from jev_assist.exposure import should_expose_compat, sort_lights_first
-from jev_assist.jev_client import build_state
-from jev_assist.jev_router import ExposedEntity
+from custom_components.jev_assist.const import EXPOSED_ENTITY_CAP
+from custom_components.jev_assist.exposure import (
+    should_expose_compat,
+    sort_lights_first,
+)
+from custom_components.jev_assist.jev_client import build_state
+from custom_components.jev_assist.jev_router import ExposedEntity
 
 
 def test_should_expose_true() -> None:

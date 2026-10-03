@@ -133,9 +133,7 @@ _FAST_ACTION_MAPS: dict[str, dict[str, tuple[str, str]]] = {
     DOMAIN_CLIMATE: CLIMATE_ACTION_MAP,
     DOMAIN_COVER: COVER_ACTION_MAP,
 }
-_FAST_SERVICE_CALLS: dict[
-    str, Callable[[str, list[str], str], tuple[str, str, dict[str, Any]] | None]
-] = {
+_FAST_SERVICE_CALLS: dict[str, Callable[[str, list[str], str], tuple[str, str, dict[str, Any]] | None]] = {
     DOMAIN_LIGHT: light_service_call,
     DOMAIN_CLIMATE: climate_service_call,
     DOMAIN_COVER: cover_service_call,
@@ -177,12 +175,8 @@ class ExposedEntity:
         object.__setattr__(self, "entity_id", str(self.entity_id))
         object.__setattr__(self, "domain", str(self.domain))
         object.__setattr__(self, "name", str(self.name))
-        object.__setattr__(
-            self, "area", None if self.area is None else str(self.area)
-        )
-        object.__setattr__(
-            self, "aliases", tuple(str(alias) for alias in self.aliases)
-        )
+        object.__setattr__(self, "area", None if self.area is None else str(self.area))
+        object.__setattr__(self, "aliases", tuple(str(alias) for alias in self.aliases))
 
 
 @dataclass(frozen=True)
@@ -274,10 +268,7 @@ def _noul_handoff_reason(prefix: str, view: NoulView) -> str:
 
 
 def _confident_whole_home(classification: JevClassification) -> bool:
-    return (
-        classification.scope.choice == SCOPE_WHOLE_HOME
-        and classification.scope.confidence >= FAST_MIN_CONFIDENCE
-    )
+    return classification.scope.choice == SCOPE_WHOLE_HOME and classification.scope.confidence >= FAST_MIN_CONFIDENCE
 
 
 def _words(text: str) -> set[str]:
@@ -287,19 +278,17 @@ def _words(text: str) -> set[str]:
 def _entity_name_tokens(entity: ExposedEntity) -> set[str]:
     """Distinctive name tokens (not domain generics / stopwords)."""
     blob = " ".join(
-        (entity.name, entity.entity_id.split(".", 1)[-1].replace("_", " "), *entity.aliases)
+        (
+            entity.name,
+            entity.entity_id.split(".", 1)[-1].replace("_", " "),
+            *entity.aliases,
+        )
     )
     generics = _GENERIC_TOKENS_BY_DOMAIN.get(entity.domain, frozenset())
-    return {
-        token
-        for token in _words(blob)
-        if len(token) >= 3 and token not in _STOP_TOKENS and token not in generics
-    }
+    return {token for token in _words(blob) if len(token) >= 3 and token not in _STOP_TOKENS and token not in generics}
 
 
-def _name_matched_entities(
-    utterance: str, items: Sequence[ExposedEntity]
-) -> list[ExposedEntity]:
+def _name_matched_entities(utterance: str, items: Sequence[ExposedEntity]) -> list[ExposedEntity]:
     uttered = _words(utterance)
     return [item for item in items if _entity_name_tokens(item) & uttered]
 
@@ -319,21 +308,13 @@ def _area_mentioned(utterance: str, area: str) -> bool:
     folded_area = area.casefold().strip()
     if len(folded_area) < 2:
         return False
-    pattern = re.compile(
-        r"(?<![a-z0-9äöüß])" + re.escape(folded_area) + r"(?![a-z0-9äöüß])"
-    )
+    pattern = re.compile(r"(?<![a-z0-9äöüß])" + re.escape(folded_area) + r"(?![a-z0-9äöüß])")
     return pattern.search(utterance.casefold()) is not None
 
 
-def named_areas_in_utterance(
-    utterance: str, exposed: Sequence[ExposedEntity]
-) -> list[str]:
+def named_areas_in_utterance(utterance: str, exposed: Sequence[ExposedEntity]) -> list[str]:
     """Area names from exposed entities that appear as phrases in the utterance."""
-    return [
-        area
-        for area in _unique_area_names(exposed)
-        if _area_mentioned(utterance, area)
-    ]
+    return [area for area in _unique_area_names(exposed) if _area_mentioned(utterance, area)]
 
 
 def _mentions_other_fast_domain(utterance: str, domain: str) -> bool:
@@ -395,9 +376,7 @@ def _resolve_targets(
 
     if len(named_areas) >= 2:
         wanted = {area.casefold() for area in named_areas}
-        scoped = [
-            item for item in of_domain if (item.area or "").casefold() in wanted
-        ]
+        scoped = [item for item in of_domain if (item.area or "").casefold() in wanted]
         if not scoped:
             return [], missing
         return scoped, None
@@ -406,9 +385,7 @@ def _resolve_targets(
         return [], "target_area_unknown"
     if target_area and target_area != TARGET_NONE:
         wanted = target_area.casefold()
-        scoped = [
-            item for item in of_domain if (item.area or "").casefold() == wanted
-        ]
+        scoped = [item for item in of_domain if (item.area or "").casefold() == wanted]
         if not scoped:
             return [], missing
         return scoped, None
@@ -451,8 +428,7 @@ def apply_gates(
         and _is_multi_area_same_action(utterance, named_areas, domain_choice)
     )
     mixed_or_conflict = len(named_areas) >= 2 and (
-        _mentions_other_fast_domain(utterance, domain_choice)
-        or _has_conflicting_actions(utterance)
+        _mentions_other_fast_domain(utterance, domain_choice) or _has_conflicting_actions(utterance)
     )
     whole_home = _confident_whole_home(classification) and not multi_area
 
@@ -487,29 +463,20 @@ def apply_gates(
             reason="domain_unmapped",
             classification=classification,
         )
-    if (
-        classification.action.choice not in action_map
-        or classification.action.confidence < FAST_MIN_CONFIDENCE
-    ):
+    if classification.action.choice not in action_map or classification.action.confidence < FAST_MIN_CONFIDENCE:
         return RouteResult(
             kind="grok",
             reason="action_unmapped",
             classification=classification,
         )
-    if (
-        classification.target_area.confidence < FAST_MIN_CONFIDENCE
-        and not multi_area
-        and not whole_home
-    ):
+    if classification.target_area.confidence < FAST_MIN_CONFIDENCE and not multi_area and not whole_home:
         return RouteResult(
             kind="grok",
             reason="target_area_low_confidence",
             classification=classification,
         )
 
-    target_area = (
-        TARGET_NONE if whole_home else classification.target_area.choice
-    )
+    target_area = TARGET_NONE if whole_home else classification.target_area.choice
     targets, target_reason = _resolve_targets(
         utterance,
         exposed,
@@ -519,9 +486,7 @@ def apply_gates(
         action=classification.action.choice,
     )
     if not targets:
-        kind: RouteKind = (
-            "reject" if (target_reason or "").startswith("no_exposed_") else "grok"
-        )
+        kind: RouteKind = "reject" if (target_reason or "").startswith("no_exposed_") else "grok"
         return RouteResult(
             kind=kind,
             reason=target_reason or "no_named_or_area_target",
@@ -536,9 +501,7 @@ def apply_gates(
     if mapped is None:
         return RouteResult(
             kind="grok",
-            reason=_UNPARSED_REASONS.get(
-                classification.action.choice, "action_unmapped"
-            ),
+            reason=_UNPARSED_REASONS.get(classification.action.choice, "action_unmapped"),
             classification=classification,
         )
     domain, service, data = mapped

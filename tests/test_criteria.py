@@ -1,6 +1,6 @@
 """criteria.py is bilingual DE/EN for every option."""
 
-from jev_assist import criteria
+from custom_components.jev_assist import criteria
 
 _LANGS = ("en", "de")
 
@@ -25,7 +25,12 @@ def test_instruction_maps_are_bilingual() -> None:
 
 
 def test_option_maps_are_bilingual() -> None:
-    for name in ("CATEGORY_OPTIONS", "DOMAIN_OPTIONS", "ACTION_OPTIONS", "SCOPE_OPTIONS"):
+    for name in (
+        "CATEGORY_OPTIONS",
+        "DOMAIN_OPTIONS",
+        "ACTION_OPTIONS",
+        "SCOPE_OPTIONS",
+    ):
         options = getattr(criteria, name)
         assert options
         for key, langs in options.items():
@@ -34,9 +39,9 @@ def test_option_maps_are_bilingual() -> None:
 
 def test_action_keys_align_with_fast_maps() -> None:
     """Action keys include light/climate/cover maps; ``other`` stays unmapped."""
-    from jev_assist.climate_map import CLIMATE_ACTION_MAP
-    from jev_assist.cover_map import COVER_ACTION_MAP
-    from jev_assist.light_map import LIGHT_ACTION_MAP
+    from custom_components.jev_assist.climate_map import CLIMATE_ACTION_MAP
+    from custom_components.jev_assist.cover_map import COVER_ACTION_MAP
+    from custom_components.jev_assist.light_map import LIGHT_ACTION_MAP
 
     frozen = {
         "turn_on",
@@ -106,14 +111,12 @@ def test_set_tilt_criteria_are_percent_based() -> None:
 
 
 def test_blessed_gate_constants() -> None:
-    from jev_assist.const import (
+    from custom_components.jev_assist.const import (
         FAST_MIN_CONFIDENCE,
         NOUL_UNSURE_LOW,
         NOUL_YES_THRESHOLD,
         REJECT_MIN_CONFIDENCE,
         TYPESAFE_MODEL,
-        TYPESAFE_RETRY_MAX,
-        TYPESAFE_TIMEOUT,
     )
 
     assert FAST_MIN_CONFIDENCE == 0.80
@@ -121,5 +124,3 @@ def test_blessed_gate_constants() -> None:
     assert NOUL_UNSURE_LOW == 0.40
     assert REJECT_MIN_CONFIDENCE == 0.80
     assert TYPESAFE_MODEL == "jev-latest"
-    assert TYPESAFE_RETRY_MAX == 2
-    assert TYPESAFE_TIMEOUT == 10.0

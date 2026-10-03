@@ -1,5 +1,7 @@
 {
   "name": "Jev Assist",
   "render_readme": true,
-  "homeassistant": "2024.10.0"
+  "homeassistant": "2026.8.1",
+  "zip_release": true,
+  "filename": "jev_assist.zip"
 }

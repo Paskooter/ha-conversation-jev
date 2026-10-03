@@ -1,6 +1,6 @@
 """Climate service map, temperature parsing, HVAC mode parsing."""
 
-from jev_assist.climate_map import (
+from custom_components.jev_assist.climate_map import (
     climate_service_call,
     parse_hvac_mode,
     parse_temperature_c,
@@ -61,9 +61,10 @@ def test_turn_on_off() -> None:
         "turn_on",
         {"entity_id": "climate.a"},
     )
-    assert climate_service_call("turn_off", ["climate.a", "climate.b"], "off")[2][
-        "entity_id"
-    ] == ["climate.a", "climate.b"]
+    assert climate_service_call("turn_off", ["climate.a", "climate.b"], "off")[2]["entity_id"] == [
+        "climate.a",
+        "climate.b",
+    ]
 
 
 def test_set_hvac_mode_requires_mode() -> None:

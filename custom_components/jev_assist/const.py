@@ -1,16 +1,6 @@
 """Constants for the Jev Assist integration."""
 
-from typing import Final, Literal
-
-from ha_spacexai_auth import (
-    CLIENT_ID,
-    DEVICE_AUTHORIZATION_URL,
-    DEVICE_GRANT_TYPE,
-    ISSUER,
-    REFERRER,
-    SCOPES,
-    TOKEN_URL,
-)
+from typing import Final
 
 DOMAIN: Final = "jev_assist"
 DEFAULT_NAME: Final = "Jev Assist"
@@ -18,39 +8,18 @@ DEFAULT_NAME: Final = "Jev Assist"
 # TypeSafe / Jev
 TYPESAFE_MODEL: Final = "jev-latest"
 TYPESAFE_BASE_URL: Final = "https://api.typesafe.ai"
+OPENROUTER_BASE_URL: Final = "https://openrouter.ai/api"
+PROVIDER_OPENROUTER: Final = "openrouter"
+PROVIDER_TYPESAFE: Final = "typesafe"
+PROVIDER_URLS: Final = {
+    PROVIDER_OPENROUTER: OPENROUTER_BASE_URL,
+    PROVIDER_TYPESAFE: TYPESAFE_BASE_URL,
+}
 EXPOSED_ENTITY_CAP: Final = 80
 
 CONF_TYPESAFE_API_KEY: Final = "typesafe_api_key"
-CONF_GROK_API_KEY: Final = "grok_api_key"
-CONF_GROK_AUTH_METHOD: Final = "grok_auth_method"
-CONF_ACCESS_TOKEN: Final = "access_token"
-CONF_REFRESH_TOKEN: Final = "refresh_token"
-CONF_EXPIRES_AT: Final = "expires_at"
-CONF_TOKEN_TYPE: Final = "token_type"
-CONF_SCOPE: Final = "scope"
-CONF_OAUTH_RECOVERY: Final = "oauth_recovery"
-
-AUTH_OAUTH: Final = "oauth"
-AUTH_API_KEY: Final = "api_key"
-AuthMethod = Literal["oauth", "api_key"]
-
-OAUTH_RECOVERY_RETRY: Final = "retry_oauth"
-OAUTH_RECOVERY_API_KEY: Final = "api_key"
-OAUTH_RECOVERY_ABORT: Final = "abort"
-
-# Refresh access tokens this many seconds before expires_at.
-TOKEN_EXPIRY_SKEW_SECONDS: Final = 60
-
-# Grok CLI public client — sourced from ha_spacexai_auth (grok-build config.rs).
-GROK_OAUTH_ISSUER: Final = ISSUER
-GROK_OAUTH_CLIENT_ID: Final = CLIENT_ID
-GROK_OAUTH_DEVICE_URL: Final = DEVICE_AUTHORIZATION_URL
-GROK_OAUTH_TOKEN_URL: Final = TOKEN_URL
-GROK_OAUTH_SCOPES: Final = SCOPES
-GROK_DEVICE_GRANT: Final = DEVICE_GRANT_TYPE
-GROK_OAUTH_REFERRER: Final = REFERRER
-GROK_API_BASE: Final = "https://api.x.ai"
-GROK_CLI_PROXY_BASE: Final = "https://cli-chat-proxy.grok.com"
+CONF_PROVIDER: Final = "provider"
+CONF_API_KEY: Final = "api_key"
 
 # Router gates (CONTRACT.md v1, blessed). Thresholds are code policy.
 FAST_MIN_CONFIDENCE: Final = 0.80
@@ -60,8 +29,10 @@ NOUL_UNSURE_LOW: Final = 0.40
 REJECT_MIN_CONFIDENCE: Final = 0.80
 
 # TypeSafe Python SDK defaults (docs: RetryPolicy.max_retries=2, DEFAULT_TIMEOUT=10.0).
-TYPESAFE_RETRY_MAX: Final = 2
-TYPESAFE_TIMEOUT: Final = 10.0
+# Classifier requests never execute actions. Bound the whole classify call so
+# Phoenix's 7.5s voice deadline still has room for local execution and speech.
+TYPESAFE_RETRY_MAX: Final = 0
+TYPESAFE_TIMEOUT: Final = 4.0
 
 CATEGORY_COMMAND: Final = "command"
 CATEGORY_CONVERSATION: Final = "conversation"

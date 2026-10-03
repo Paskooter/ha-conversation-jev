@@ -1,6 +1,9 @@
 """Brightness regex and light service map v0."""
 
-from jev_assist.light_map import light_service_call, parse_brightness_pct
+from custom_components.jev_assist.light_map import (
+    light_service_call,
+    parse_brightness_pct,
+)
 
 
 def test_parse_percent_en() -> None:

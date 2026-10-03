@@ -65,15 +65,14 @@ def filter_supported_kwargs(func: Any, kwargs: Mapping[str, Any]) -> dict[str, A
     """Drop kwargs that ``func`` does not accept (older HA converse signatures)."""
     try:
         params = inspect.signature(func).parameters
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return dict(kwargs)
     if any(param.kind is inspect.Parameter.VAR_KEYWORD for param in params.values()):
         return dict(kwargs)
     allowed = {
         name
         for name, param in params.items()
-        if param.kind
-        in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
+        if param.kind in (inspect.Parameter.POSITIONAL_OR_KEYWORD, inspect.Parameter.KEYWORD_ONLY)
     }
     return {key: value for key, value in kwargs.items() if key in allowed}
 
@@ -122,11 +121,10 @@ async def async_try_handoff_to_conversation_agent(
         )
     except Exception as err:  # noqa: BLE001 — Assist must get speech, not a crash
         _LOGGER.info(
-            "Grok handoff failed kind=%s reason=%s agent_id=%s: %s",
+            "Grok handoff failed kind=%s reason=%s (%s)",
             route_kind,
             route_reason,
-            agent_id,
-            err,
+            type(err).__name__,
         )
         return None, GROK_HANDOFF_UNAVAILABLE_SPEECH
     return result, None

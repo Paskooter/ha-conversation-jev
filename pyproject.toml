@@ -1,0 +1,12 @@
+[project]
+name = "jev-assist-openrouter"
+version = "0.2.0b1"
+description = "Home Assistant Jev classifier with OpenRouter and configurable Assist fallback"
+requires-python = ">=3.14.2"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

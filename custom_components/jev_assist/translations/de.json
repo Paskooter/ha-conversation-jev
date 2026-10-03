@@ -1,69 +1,74 @@
 {
+  "title": "Jev Assist",
   "config": {
     "abort": {
-      "already_configured": "Jev Assist ist bereits eingerichtet.",
-      "oauth_failed": "Grok-Anmeldung wurde abgebrochen.",
-      "reauth_successful": "Grok wurde erneut authentifiziert."
+      "already_configured": "Jev Assist is already configured.",
+      "reauth_successful": "Jev API key updated.",
+      "reconfigure_successful": "Jev provider and API key updated."
     },
     "error": {
-      "invalid_api_key": "Gib einen nicht leeren API-Schlüssel ein.",
-      "oauth_failed": "Grok-Anmeldung fehlgeschlagen. Du kannst OAuth erneut versuchen, einen API-Schlüssel nutzen oder abbrechen.",
-      "cannot_connect": "Der Authentifizierungsserver war nicht erreichbar."
-    },
-    "progress": {
-      "oauth_wait": "Mit Grok anmelden (nutzt den Grok-CLI-OAuth-Client).\n\nÖffne {url} und gib diesen Code ein: **{user_code}**."
+      "invalid_api_key": "Enter a valid API key without internal spaces.",
+      "invalid_provider": "Select OpenRouter or TypeSafe.",
+      "invalid_auth": "The provider rejected this API key. Check its permissions.",
+      "rate_limited": "The provider rate limit was reached. Wait and try again.",
+      "cannot_connect": "Could not reach the Jev provider. Check Internet access and try again.",
+      "provider_error": "The provider could not serve Jev. Check your account credit and model availability."
     },
     "step": {
       "user": {
         "title": "Jev Assist",
-        "description": "TypeSafe/Jev nutzt einen API-Schlüssel von typesafe.ai (derselbe Schlüssel, falls über Vercel ausgestellt). Die Grok-Anmeldung ist standardmäßig OAuth (öffentlicher Grok-CLI-Client). Ein Grok-API-Schlüssel ist nur Fallback, wenn die OAuth-Berechtigung fehlt oder du über console.x.ai abrechnest.",
+        "description": "OpenRouter verwendet Ihren OpenRouter-API-Schlüssel für Jev. Kein TypeSafe-Konto erforderlich. Ein synthetischer Test prüft den Schlüssel. Melden Sie sich für Grok in SpaceXAI an und wählen Sie dessen Agent anschließend unter Konfigurieren.",
         "data": {
-          "typesafe_api_key": "TypeSafe-/Jev-API-Schlüssel (typesafe.ai)",
-          "grok_auth_method": "Grok-Authentifizierung"
+          "provider": "Jev-Anbieter",
+          "api_key": "API-Schlüssel des Anbieters"
         },
         "data_description": {
-          "typesafe_api_key": "Von typesafe.ai (maßgebliche Quelle). Derselbe Schlüssel, falls über Vercel ausgestellt. Wird im Home-Assistant-Config-Eintrag gespeichert.",
-          "grok_auth_method": "Primär: Mit Grok anmelden (nutzt den Grok-CLI-OAuth-Client). Fallback: API-Schlüssel für https://api.x.ai."
+          "api_key": "Wird in Home Assistant gespeichert. Verwenden Sie den Schlüssel des ausgewählten Anbieters."
         }
       },
-      "oauth": {
-        "title": "Mit Grok anmelden (nutzt den Grok-CLI-OAuth-Client)"
-      },
-      "oauth_failed": {
-        "title": "Grok-Anmeldung nicht abgeschlossen",
-        "description": "Device-Code-OAuth ist fehlgeschlagen ({error}). OAuth erneut versuchen, einen Grok-API-Schlüssel als Fallback nutzen, oder abbrechen.",
+      "reconfigure": {
+        "title": "Change Jev provider",
+        "description": "OpenRouter verwendet Ihren OpenRouter-API-Schlüssel für Jev. Kein TypeSafe-Konto erforderlich. Ein synthetischer Test prüft den Schlüssel. Melden Sie sich für Grok in SpaceXAI an und wählen Sie dessen Agent anschließend unter Konfigurieren.",
         "data": {
-          "oauth_recovery": "Nächster Schritt"
-        }
-      },
-      "api_key": {
-        "title": "Grok-API-Schlüssel (Fallback)",
-        "description": "Nutze einen console.x.ai-API-Schlüssel, wenn die OAuth-Berechtigung fehlt oder du über die Developer-API unter https://api.x.ai abrechnest. Das ist nicht der Standard.",
-        "data": {
-          "grok_api_key": "Grok-API-Schlüssel"
+          "provider": "Jev-Anbieter",
+          "api_key": "API-Schlüssel des Anbieters"
+        },
+        "data_description": {
+          "api_key": "Wird in Home Assistant gespeichert. Verwenden Sie den Schlüssel des ausgewählten Anbieters."
         }
       },
       "reauth_confirm": {
-        "title": "Grok erneut authentifizieren",
-        "description": "Grok-Tokens fehlen oder wurden abgelehnt. Melde dich erneut mit Grok an (OAuth), oder nutze einen API-Schlüssel als Fallback.",
+        "title": "Update Jev API key",
+        "description": "OpenRouter verwendet Ihren OpenRouter-API-Schlüssel für Jev. Kein TypeSafe-Konto erforderlich. Ein synthetischer Test prüft den Schlüssel. Melden Sie sich für Grok in SpaceXAI an und wählen Sie dessen Agent anschließend unter Konfigurieren.",
         "data": {
-          "grok_auth_method": "Grok-Authentifizierung"
+          "provider": "Jev-Anbieter",
+          "api_key": "API-Schlüssel des Anbieters"
+        },
+        "data_description": {
+          "api_key": "Wird in Home Assistant gespeichert. Verwenden Sie den Schlüssel des ausgewählten Anbieters."
         }
       }
     }
   },
-  "selector": {
-    "grok_auth_method": {
-      "options": {
-        "oauth": "Mit Grok anmelden (nutzt den Grok-CLI-OAuth-Client)",
-        "api_key": "Grok-API-Schlüssel (console.x.ai-Abrechnung, Fallback)"
+  "options": {
+    "step": {
+      "init": {
+        "title": "Konversations-Fallback",
+        "description": "Melden Sie sich bei Grok in SpaceXAI an und wählen Sie dessen Konversationsagent. Jev speichert keine eigene Grok-Anmeldung.",
+        "data": {
+          "grok_handoff_agent_id": "Fallback-Konversationsagent"
+        }
       }
     },
-    "oauth_recovery": {
+    "error": {
+      "invalid_agent": "Choose an installed conversation agent. Jev cannot hand off to itself."
+    }
+  },
+  "selector": {
+    "provider": {
       "options": {
-        "retry_oauth": "Grok-OAuth erneut versuchen",
-        "api_key": "Grok-API-Schlüssel verwenden",
-        "abort": "Abbrechen"
+        "openrouter": "OpenRouter (Jev über Ihr OpenRouter-Konto)",
+        "typesafe": "TypeSafe (direkte Jev-API)"
       }
     }
   }

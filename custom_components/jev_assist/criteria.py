@@ -12,14 +12,8 @@ from __future__ import annotations
 from typing import Final
 
 CATEGORY_INSTRUCTIONS: Final[dict[str, str]] = {
-    "en": (
-        "Classify `utterance` for a Home Assistant voice agent. "
-        "Pick the single best category."
-    ),
-    "de": (
-        "Klassifiziere `utterance` für einen Home-Assistant-Sprachassistenten. "
-        "Wähle die eine passende Kategorie."
-    ),
+    "en": ("Classify `utterance` for a Home Assistant voice agent. Pick the single best category."),
+    "de": ("Klassifiziere `utterance` für einen Home-Assistant-Sprachassistenten. Wähle die eine passende Kategorie."),
 }
 
 CATEGORY_OPTIONS: Final[dict[str, dict[str, str]]] = {
@@ -126,24 +120,15 @@ ACTION_OPTIONS: Final[dict[str, dict[str, str]]] = {
         "de": "Das Ziel zwischen ein und aus umschalten.",
     },
     "set_brightness": {
-        "en": (
-            "Set or change light brightness or dim level "
-            "(including relative dimmer/brighter)."
-        ),
-        "de": (
-            "Helligkeit oder Dimmstufe eines Lichts setzen oder ändern "
-            "(einschließlich relativ dimmen/heller)."
-        ),
+        "en": ("Set or change light brightness or dim level (including relative dimmer/brighter)."),
+        "de": ("Helligkeit oder Dimmstufe eines Lichts setzen oder ändern (einschließlich relativ dimmen/heller)."),
     },
     "set_temperature": {
         "en": "Set a thermostat or climate target temperature (setpoint in degrees).",
         "de": "Ein Thermostat- oder Klima-Sollwert in Grad setzen.",
     },
     "set_hvac_mode": {
-        "en": (
-            "Set HVAC mode (heat, cool, auto, off, dry, fan_only, heat_cool) "
-            "when the mode is named clearly."
-        ),
+        "en": ("Set HVAC mode (heat, cool, auto, off, dry, fan_only, heat_cool) when the mode is named clearly."),
         "de": (
             "Den HLK-Modus setzen (heizen, kühlen, auto, aus, entfeuchten, "
             "nur Lüfter, heizen und kühlen), wenn der Modus klar genannt ist."
@@ -162,10 +147,7 @@ ACTION_OPTIONS: Final[dict[str, dict[str, str]]] = {
         "de": "Ein fahrendes Cover, Jalousie, Rollladen oder Garagentor stoppen.",
     },
     "set_position": {
-        "en": (
-            "Set a cover lift/height position to an explicit percent (0–100), "
-            "not slat tilt."
-        ),
+        "en": ("Set a cover lift/height position to an explicit percent (0–100), not slat tilt."),
         "de": (
             "Die Lift-/Höhenposition eines Covers auf einen klaren Prozentwert "
             "(0–100) setzen, nicht die Lamellenneigung."
@@ -213,10 +195,7 @@ SCOPE_OPTIONS: Final[dict[str, dict[str, str]]] = {
         ),
     },
     "named_area": {
-        "en": (
-            "The user named one or more rooms from `areas` (or implied a "
-            "room) without naming a specific device."
-        ),
+        "en": ("The user named one or more rooms from `areas` (or implied a room) without naming a specific device."),
         "de": (
             "Der Nutzer nannte einen oder mehrere Räume aus `areas` "
             "(oder deutete einen Raum an), ohne ein bestimmtes Gerät zu nennen."

@@ -1,6 +1,6 @@
 """Cover service map and position / tilt percent parsing."""
 
-from jev_assist.cover_map import (
+from custom_components.jev_assist.cover_map import (
     cover_service_call,
     parse_position_pct,
     parse_tilt_pct,

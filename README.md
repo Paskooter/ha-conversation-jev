@@ -1,46 +1,54 @@
-# Jev Assist
+# Jev Assist with OpenRouter
 
-Home Assistant custom conversation agent: **Jev** (TypeSafe System One, `jev-latest`) classifies an utterance, then either calls a **light / climate / cover** service (fast path) or hands off to the **SpaceXAI Grok** conversation agent.
+Owner beta **0.2.0b1**. A fork of [luxus/ha-conversation-jev](https://github.com/luxus/ha-conversation-jev), preserving its Jev classifier, confidence gates and light/climate/cover routing. Tested with real isolated Home Assistant **2026.8.1 and 2026.9.4** on Python 3.14.
 
-## Install (HACS)
+Choose **OpenRouter** during setup to charge Jev classification to your OpenRouter account. A separate TypeSafe account is unnecessary. Direct TypeSafe keys remain supported. Jev uses `jev-latest` through the official [System One API](https://openrouter.ai/docs/guides/community/typesafe-sdk); it is a classifier, not a chat model.
 
-1. [HACS](https://hacs.xyz/) → **⋯** → **Custom repositories**
-2. URL: `https://github.com/luxus/ha-conversation-jev` — category **Integration**
-3. Download **Jev Assist**, then restart Home Assistant
-4. **Settings → Devices & services → Add integration → Jev Assist**
+Simple, confident commands execute locally against Assist-exposed devices. Other requests go once to your explicitly selected conversation agent. For Grok, install SpaceXAI and sign in there with your xAI account. Jev does not create a Grok agent or store a second Grok login. Without Grok, Home Assistant's built-in agent is available as the fallback.
 
-Manual install: copy `custom_components/jev_assist/` into your HA `config/custom_components/` folder and restart.
+## Install from HACS
 
-## Configuration
+1. Open HACS → menu → **Custom repositories**.
+2. Add `https://github.com/Paskooter/ha-conversation-jev`, category **Integration**.
+3. Download **Jev Assist**. Enable beta/prerelease versions and select **0.2.0b1**.
+4. Restart Home Assistant.
+5. Open **Settings → Devices & services → Add integration → Jev Assist**.
+6. Select **OpenRouter** and enter your OpenRouter API key. Setup makes one small synthetic classification request to check credentials, using no household metadata.
 
-1. **TypeSafe / Jev API key** (required, from [typesafe.ai](https://typesafe.ai); the same key if issued via Vercel) — stored on the config entry, not in `configuration.yaml`.
-2. **Grok (primary): Sign in with Grok (uses Grok CLI OAuth client)**  
-   Device-code + PKCE against `https://auth.x.ai` via shared package
-   [`ha_spacexai_auth`](https://github.com/luxus/ha-spacexai-auth)
-   (`start_device_auth` / `poll_token` / `ensure_fresh`) using the public Grok CLI `client_id`
-   `b1a00492-073a-47ea-816f-4c329264a828`
-   (verified against `xai-org/grok-build` `crates/codegen/xai-grok-login/src/config.rs`).
-   Home Assistant shows a URL and user code, polls the token endpoint, and stores **access + refresh** tokens. Setup/reload calls `ensure_fresh` (refresh only near expiry). If the IdP rotates the refresh token, the new one is persisted.
-3. **Grok (optional fallback): API key** for `https://api.x.ai` when OAuth entitlement is missing or you bill via console.x.ai.
+If the original Jev integration is already installed, use this fork instead of that HACS repository. Both use `custom_components/jev_assist`; install only one copy. Existing direct TypeSafe entries retain their provider and key. See [upgrade and removal](docs/setup.md#upgrade-and-removal).
 
-This integration does **not** use Home Assistant Application Credentials.
+For manual installation, download `jev_assist.zip` from the [beta release](https://github.com/Paskooter/ha-conversation-jev/releases/tag/v0.2.0b1), create `custom_components/jev_assist` in your HA configuration directory, and extract the archive's files directly there. The path must end in `custom_components/jev_assist/manifest.json`. Restart HA.
 
-After setup, pick **Jev Assist** as the conversation agent in an Assist pipeline.
+## Connect Grok and Jibo
 
-## What it does
+Follow [the complete owner setup guide](docs/setup.md). The three relevant settings are:
 
-- Jev questions (DE/EN) live in `criteria.py` and are sent in **one** `typesafe-sdk` `AsyncTypeSafeClient.system_one` call (`jev-latest`, explicit `RetryPolicy(max_retries=2)` / 10s timeout). State is a named JSON object: `utterance`, `language`, `exposed_entities`, `areas`.
-- Router kinds: `fast_service` | `grok` | `reject` (gates in `CONTRACT.md` / `const.py`: `FAST_MIN_CONFIDENCE=0.80`, `NOUL_YES_THRESHOLD=0.55`, `NOUL_UNSURE_LOW=0.40`).
-- Fast path domains: **light** (`turn_on` / `turn_off` / `toggle` / `set_brightness`), **climate** (`set_temperature` / `turn_on` / `turn_off` / `set_hvac_mode`), **cover** (`open` / `close` / `stop` / `set_position` / `set_tilt`). Maps live in `light_map.py`, `climate_map.py`, `cover_map.py`.
-- Multi-area same action: „alle Lichter in Schlafzimmer und Flur“ / “all lights in bedroom and hallway” stays `fast_service` (union of Assist-exposed lights in those rooms only), even if Jev marks `is_compound`.
-- Whole-home safety: `target_area=none` never fires all exposed entities of a domain. Confident `scope=whole_home` is treated the same (does not use a single-room Choice). Needs a name-token match, an explicit area, two or more named areas, or exactly one Assist-exposed entity of that domain for simple on/off-style actions.
-- Grok path: `conversation.async_converse` to `conversation.spacexai_grok` (`GROK_HANDOFF_AGENT_ID`; override with config-entry `grok_handoff_agent_id`). No TTS/STT/chat stack inside Jev.
+| Setting | Choose |
+| --- | --- |
+| Jev Assist → Configure → Fallback conversation agent | SpaceXAI's **Grok** agent, after signing in in SpaceXAI |
+| Home Assistant voice assistant → Conversation agent | **Jev Assist**, to use it in Home Assistant Assist |
+| Phoenix **0.1.0b4+** → Configure → Conversation agent | **Jev Assist**, to use it for Jibo's home commands |
 
-## Tests
+Changing the default Assist pipeline alone does **not** change Jibo's agent. Phoenix defaults to Home Assistant's built-in agent until you opt in. Jibo keeps its existing recognition and voice; SpaceXAI TTS and STT are unnecessary for this connection.
 
-```bash
-pip install -r requirements-dev.txt
-pytest
-```
+## Commands and boundaries
 
-Router tests mock Jev; no live API keys are required.
+The deterministic fast path supports lights on/off/toggle and numeric brightness, climate setpoint/on/off/mode, and covers open/close/stop/numeric position/tilt. Only explicitly resolved Assist-exposed targets are eligible. Whole-home targeting cannot silently expand to every exposed device. Other domains, colors, spelled-out brightness and mixed operations go to the selected fallback agent, whose capabilities and exposure settings govern them.
+
+Try these in Home Assistant's text Assist **after selecting Jev Assist and entering your key**:
+
+- `Turn off the kitchen lights.`
+- `Turn on the kitchen lights.`
+- `Set bedroom light brightness to 50 percent.`
+
+These routing cases are tested with synthetic classifier answers and actual HA services. Live Jev inference with an owner's key and Grok subscription entitlement remain installation checks; this beta does not claim their accuracy or latency from mocked responses. Device names, aliases and areas still need to match your household. An AI agent cannot supply a missing Kitchen area or grant itself access to an unexposed light.
+
+For Jibo, say “Hey Jibo” first. Use **“ask Home Assistant to…”** for a custom phrase. Phoenix still selects a home-command route before invoking any HA agent, preserving ordinary Jibo commands and active skill responses.
+
+## Reliability and privacy
+
+The classifier has a four-second overall deadline and sends one request without retries. A service action executes once. Light on/off/toggle and brightness wait up to two seconds for the resolved states to confirm. An exception or missing confirmation returns uncertainty; the integration never hands off after an action has started. Unavailable targets are reported honestly, including partial results.
+
+Only Assist-exposed entity identifiers, names, aliases and areas, the utterance and language are sent to the selected Jev provider (at most 80 entities in classifier state). The fallback agent manages its own provider data. Keys stay in HA's config entry; diagnostics omit keys, tokens, names, utterances and agent identifiers. Never share `.storage/core.config_entries`. Errors log exception types rather than provider response bodies or household utterances.
+
+See [setup, troubleshooting, upgrade and removal](docs/setup.md), [validation](docs/validation.md), [development](CONTRIBUTING.md), and [the routing contract](CONTRACT.md).

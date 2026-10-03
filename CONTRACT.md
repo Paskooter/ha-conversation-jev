@@ -146,35 +146,20 @@ HA services (verified against cover integration actions):
 (on/off-style) → Grok. Prefer explicit area or name-token; same whole-home
 safety as lights. `set_tilt` is percent-only — never invent a tilt value.
 
-## Grok OAuth client
+## Provider and authentication (OpenRouter fork)
 
-Device-code + PKCE is implemented by shared package
-[`ha_spacexai_auth`](https://github.com/luxus/ha-spacexai-auth)
-(`start_device_auth` / `poll_token` / `ensure_fresh` / `TokenSet`).
-Config Flow UI stays in this integration.
+The original classifier gates and domain maps above remain unchanged. New entries default to OpenRouter; older entries without a provider retain direct TypeSafe. Use a fixed HTTPS provider URL with the official typesafe-sdk 0.7.2. OpenRouter's SDK base is `https://openrouter.ai/api`; the SDK appends `/v1/systemone`. Direct TypeSafe uses `https://api.typesafe.ai`. Explicit URLs and keys override environment defaults. Model is `jev-latest`.
 
-Public Grok CLI `client_id` (leave unchanged; re-exported from the package):
+State is a named JSON object (`utterance`, `language`, `exposed_entities`, `areas`), with all Choice and Noul questions in one request. The whole classifier call has a four-second timeout and no retries. Setup validates a key using only synthetic state, not household metadata.
 
-`b1a00492-073a-47ea-816f-4c329264a828`
+Grok authentication belongs to the selected conversation agent, normally SpaceXAI. This fork removes the original unused duplicate Jev OAuth flow and its unpinned Git dependency. Existing entry metadata remains intact, but Jev never refreshes or uses those Grok tokens. Owners sign in in SpaceXAI and select its installed agent through Jev options. New entries use Home Assistant's local agent if Grok is not installed.
 
-Verified byte-for-byte against `xai-org/grok-build`
-`crates/codegen/xai-grok-login/src/config.rs`
-(`obfstr!("b1a00492-073a-47ea-816f-4c329264a828")`).
-
-Device-code + PKCE at `https://auth.x.ai`. Not HA Application Credentials.
-API key for `https://api.x.ai` is fallback only.
-
-TypeSafe/Jev remains an API key (`jev-latest` via `typesafe-sdk`
-`AsyncTypeSafeClient.system_one`). State is a named JSON object (`utterance`,
-`language`, `exposed_entities`, `areas`) — not a JSON string. One call fans out
-category / domain / action / scope / target_area Choices plus `needs_llm` and
-`is_compound` Nouls (speculative; code ignores unused answers). RetryPolicy
-`max_retries=2`, HTTP timeout 10s (SDK defaults, made explicit).
+A fast service rechecks exposure after classification. Unavailable targets are omitted from execution and reported in HA's failed result targets; partial success is preserved. Actions execute once, never followed by a fallback or retry after execution begins. Light on/off/toggle/brightness waits up to two seconds for state confirmation; lost confirmation is FAILED_TO_HANDLE uncertainty. Rejections before execution use NO_VALID_TARGETS. Classifier/auth failures use a spoken error, never a service call.
 
 ## Grok handoff
 
 When the router returns `kind=grok`, the conversation entity calls Home Assistant
-`conversation.async_converse` with `agent_id=GROK_HANDOFF_AGENT_ID` (default
+`conversation.async_converse` with `agent_id=GROK_HANDOFF_AGENT_ID` (legacy default
 `conversation.spacexai_grok`, the SpaceXAI umbrella conversation entity). The
 same `text`, `conversation_id`, `context`, `language`, `device_id`,
 `satellite_id`, and `extra_system_prompt` are forwarded.

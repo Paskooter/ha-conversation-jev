@@ -2,20 +2,28 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Literal
 
 from homeassistant.components import conversation
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import MATCH_ALL
+from homeassistant.const import MATCH_ALL, STATE_UNAVAILABLE, STATE_UNKNOWN
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import (
     area_registry as ar,
+)
+from homeassistant.helpers import (
     device_registry as dr,
+)
+from homeassistant.helpers import (
     entity_registry as er,
+)
+from homeassistant.helpers import (
     intent,
 )
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from typesafe_sdk import TypeSafeAuthenticationError, TypeSafePermissionDeniedError
 
 from .const import DOMAIN, GROK_HANDOFF_UNAVAILABLE_SPEECH, ROUTE_FAILURE_SPEECH
 from .exposure import should_expose_compat, sort_lights_first
@@ -79,9 +87,7 @@ class JevAssistConversationEntity(
     ) -> conversation.ConversationResult:
         return await self._async_route_and_act(user_input, chat_log=chat_log)
 
-    async def async_process(
-        self, user_input: conversation.ConversationInput
-    ) -> conversation.ConversationResult:
+    async def async_process(self, user_input: conversation.ConversationInput) -> conversation.ConversationResult:
         """Older HA path without ChatLog wrapping."""
         return await self._async_route_and_act(user_input, chat_log=None)
 
@@ -92,17 +98,18 @@ class JevAssistConversationEntity(
         chat_log: conversation.ChatLog | None,
     ) -> conversation.ConversationResult:
         try:
-            return await self._async_route_and_act_inner(
-                user_input, chat_log=chat_log
-            )
-        except Exception:  # noqa: BLE001 — never raise into Assist
-            _LOGGER.error(
-                "Jev route-and-act failed text=%r",
-                getattr(user_input, "text", None),
-                exc_info=True,
-            )
+            return await self._async_route_and_act_inner(user_input, chat_log=chat_log)
+        except TypeSafeAuthenticationError, TypeSafePermissionDeniedError:
+            self.entry.async_start_reauth(self.hass)
+            speech = "Jev needs a new API key. Check its settings in Home Assistant."
+            result = _speech_result(user_input, speech, error=intent.IntentResponseErrorCode.NO_INTENT_MATCH)
+            _attach_assistant(chat_log, user_input, speech)
+            return result
+        except Exception as err:  # noqa: BLE001 — never raise into Assist
+            # Provider errors can echo an utterance/key. Log the type only.
+            _LOGGER.error("Jev route-and-act failed (%s)", type(err).__name__)
             speech = ROUTE_FAILURE_SPEECH
-            result = _speech_result(user_input, speech)
+            result = _speech_result(user_input, speech, error=intent.IntentResponseErrorCode.NO_INTENT_MATCH)
             _attach_assistant(chat_log, user_input, speech)
             return result
 
@@ -139,43 +146,108 @@ class JevAssistConversationEntity(
                 )
             except Exception as err:  # noqa: BLE001 — never raise into Assist
                 _LOGGER.info(
-                    "Grok handoff failed kind=%s reason=%s: %s",
+                    "Grok handoff failed kind=%s reason=%s (%s)",
                     routed.kind,
                     routed.reason,
-                    err,
+                    type(err).__name__,
                 )
                 handed, speech = None, GROK_HANDOFF_UNAVAILABLE_SPEECH
             if handed is not None:
                 return handed
             speech = speech or GROK_HANDOFF_UNAVAILABLE_SPEECH
-            result = _speech_result(user_input, speech)
+            result = _speech_result(
+                user_input,
+                speech,
+                error=intent.IntentResponseErrorCode.FAILED_TO_HANDLE,
+            )
             _attach_assistant(chat_log, user_input, speech)
             return result
 
         if routed.kind == "fast_service" and routed.domain and routed.service:
-            try:
-                await self.hass.services.async_call(
-                    routed.domain,
-                    routed.service,
-                    routed.service_data or {},
-                    blocking=True,
-                    context=user_input.context,
-                )
-            except Exception:  # noqa: BLE001 — service failure → speech, not crash
-                _LOGGER.error(
-                    "Jev fast_service %s.%s failed",
-                    routed.domain,
-                    routed.service,
-                    exc_info=True,
-                )
-                speech = ROUTE_FAILURE_SPEECH
-            else:
-                speech = "OK"
+            result = await self._async_fast_service(user_input, routed)
+            speech = result.response.speech.get("plain", {}).get("speech", "")
         else:
             speech = ROUTE_FAILURE_SPEECH
+            result = _speech_result(
+                user_input,
+                speech,
+                error=intent.IntentResponseErrorCode.NO_VALID_TARGETS,
+            )
 
-        result = _speech_result(user_input, speech)
         _attach_assistant(chat_log, user_input, speech)
+        return result
+
+    async def _async_fast_service(self, user_input, routed):
+        """Recheck exposure, execute once, and confirm light state honestly."""
+        data = dict(routed.service_data or {})
+        target_ids = data.get("entity_id", [])
+        if isinstance(target_ids, str):
+            target_ids = [target_ids]
+        if not target_ids or any(not _should_expose(self.hass, entity_id) for entity_id in target_ids):
+            return _speech_result(
+                user_input,
+                "That device is not exposed to Assist.",
+                error=intent.IntentResponseErrorCode.NO_VALID_TARGETS,
+            )
+        available = []
+        unavailable = []
+        expected = {}
+        for entity_id in target_ids:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+                unavailable.append(entity_id)
+                continue
+            available.append(entity_id)
+            if routed.domain == "light":
+                if routed.service == "toggle":
+                    expected[entity_id] = "off" if state.state == "on" else "on"
+                elif routed.service in ("turn_on", "turn_off"):
+                    expected[entity_id] = (
+                        "off" if routed.service == "turn_off" or data.get("brightness_pct") == 0 else "on"
+                    )
+        if not available:
+            return _speech_result(
+                user_input,
+                "The device is unavailable.",
+                error=intent.IntentResponseErrorCode.NO_VALID_TARGETS,
+            )
+        data["entity_id"] = available
+        try:
+            await self.hass.services.async_call(
+                routed.domain,
+                routed.service,
+                data,
+                blocking=True,
+                context=user_input.context,
+            )
+            async with asyncio.timeout(2):
+                while any(
+                    (state := self.hass.states.get(entity_id)) is None
+                    or state.state != value
+                    or (
+                        "brightness_pct" in data
+                        and value != "off"
+                        and abs((state.attributes.get("brightness") or 0) - round(255 * data["brightness_pct"] / 100))
+                        > 2
+                    )
+                    for entity_id, value in expected.items()
+                ):
+                    await asyncio.sleep(0.05)
+        except Exception as err:
+            _LOGGER.warning("Jev service outcome unconfirmed (%s)", type(err).__name__)
+            return _speech_result(
+                user_input,
+                "I couldn't confirm the result.",
+                error=intent.IntentResponseErrorCode.FAILED_TO_HANDLE,
+            )
+        result = _speech_result(
+            user_input,
+            "Done, but some devices were unavailable." if unavailable else "OK",
+        )
+        result.response.async_set_results(
+            [_target(self.hass, entity_id) for entity_id in available],
+            [_target(self.hass, entity_id) for entity_id in unavailable],
+        )
         return result
 
     async def _async_handoff_to_grok(
@@ -197,13 +269,25 @@ class JevAssistConversationEntity(
 
 
 def _speech_result(
-    user_input: conversation.ConversationInput, speech: str
+    user_input: conversation.ConversationInput, speech: str, *, error=None
 ) -> conversation.ConversationResult:
     intent_response = intent.IntentResponse(language=user_input.language)
-    intent_response.async_set_speech(speech)
+    if error is not None:
+        intent_response.async_set_error(error, speech)
+    else:
+        intent_response.async_set_speech(speech)
     return conversation.ConversationResult(
         response=intent_response,
         conversation_id=user_input.conversation_id,
+    )
+
+
+def _target(hass, entity_id):
+    state = hass.states.get(entity_id)
+    return intent.IntentResponseTarget(
+        name=str(state.name) if state else entity_id,
+        type=intent.IntentResponseTargetType.ENTITY,
+        id=entity_id,
     )
 
 
@@ -270,6 +354,4 @@ def _should_expose(hass: HomeAssistant, entity_id: str) -> bool:
     except ImportError:
         return False
 
-    return should_expose_compat(
-        lambda: async_should_expose(hass, conversation.DOMAIN, entity_id)
-    )
+    return should_expose_compat(lambda: async_should_expose(hass, conversation.DOMAIN, entity_id))

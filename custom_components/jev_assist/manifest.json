@@ -1,16 +1,19 @@
 {
   "domain": "jev_assist",
   "name": "Jev Assist",
-  "codeowners": ["@luxus"],
+  "codeowners": [
+    "@Paskooter"
+  ],
   "config_flow": true,
-  "dependencies": ["conversation"],
-  "documentation": "https://github.com/luxus/ha-conversation-jev",
+  "dependencies": [
+    "conversation"
+  ],
+  "documentation": "https://github.com/Paskooter/ha-conversation-jev",
   "integration_type": "service",
   "iot_class": "cloud_polling",
-  "issue_tracker": "https://github.com/luxus/ha-conversation-jev/issues",
+  "issue_tracker": "https://github.com/Paskooter/ha-conversation-jev/issues",
   "requirements": [
-    "typesafe-sdk>=0.6.0",
-    "ha-spacexai-auth @ git+https://github.com/luxus/ha-spacexai-auth.git@main"
+    "typesafe-sdk==0.7.2"
   ],
-  "version": "0.1.6"
+  "version": "0.2.0b1"
 }

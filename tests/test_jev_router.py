@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from jev_assist.const import FAST_MIN_CONFIDENCE, NOUL_YES_THRESHOLD
-from jev_assist.jev_router import ExposedEntity, route
+from custom_components.jev_assist.const import FAST_MIN_CONFIDENCE, NOUL_YES_THRESHOLD
+from custom_components.jev_assist.jev_router import ExposedEntity, route
 
 from .fakes import (
     BEDROOM_COVER,
@@ -335,9 +335,7 @@ async def test_multi_area_de_lights_on_fast_despite_compound() -> None:
 
 @pytest.mark.asyncio
 async def test_multi_area_de_lights_off_fast() -> None:
-    client = FakeJevClient(
-        classification(action="turn_off", target_area="none", is_compound=0.80)
-    )
+    client = FakeJevClient(classification(action="turn_off", target_area="none", is_compound=0.80))
     result = await route(
         "alle Lichter in Schlafzimmer und Flur aus",
         [SCHLAFZIMMER_LIGHT, FLUR_LIGHT, WOHNZIMMER_LIGHT],
@@ -351,9 +349,7 @@ async def test_multi_area_de_lights_off_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_multi_area_en_lights_on_fast() -> None:
-    client = FakeJevClient(
-        classification(action="turn_on", target_area="bedroom", is_compound=0.70)
-    )
+    client = FakeJevClient(classification(action="turn_on", target_area="bedroom", is_compound=0.70))
     result = await route(
         "all lights in bedroom and hallway",
         [BEDROOM_LIGHT, HALLWAY_LIGHT, LIVING_LAMP],
@@ -367,9 +363,7 @@ async def test_multi_area_en_lights_on_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_multi_area_en_lights_off_fast() -> None:
-    client = FakeJevClient(
-        classification(action="turn_off", target_area="hallway", is_compound=0.88)
-    )
+    client = FakeJevClient(classification(action="turn_off", target_area="hallway", is_compound=0.88))
     result = await route(
         "turn off all lights in bedroom and hallway",
         [BEDROOM_LIGHT, HALLWAY_LIGHT, LIVING_LAMP],
@@ -396,9 +390,7 @@ async def test_multi_area_does_not_fire_unnamed_rooms() -> None:
 
 @pytest.mark.asyncio
 async def test_conflicting_multi_area_actions_still_compound() -> None:
-    client = FakeJevClient(
-        classification(action="turn_on", target_area="bedroom", is_compound=0.95)
-    )
+    client = FakeJevClient(classification(action="turn_on", target_area="bedroom", is_compound=0.95))
     result = await route(
         "turn on lights in bedroom and turn off hallway",
         [BEDROOM_LIGHT, HALLWAY_LIGHT],
@@ -411,9 +403,7 @@ async def test_conflicting_multi_area_actions_still_compound() -> None:
 
 @pytest.mark.asyncio
 async def test_mixed_domain_multi_area_goes_to_grok() -> None:
-    client = FakeJevClient(
-        classification(action="turn_on", target_area="bedroom", is_compound=0.90)
-    )
+    client = FakeJevClient(classification(action="turn_on", target_area="bedroom", is_compound=0.90))
     result = await route(
         "turn on lights in bedroom and open blinds in hallway",
         [BEDROOM_LIGHT, HALLWAY_LIGHT, BEDROOM_COVER],
@@ -439,9 +429,7 @@ async def test_true_compound_without_two_areas_still_grok() -> None:
 
 @pytest.mark.asyncio
 async def test_climate_set_temperature_fast() -> None:
-    client = FakeJevClient(
-        classification(domain="climate", action="set_temperature", target_area="Living room")
-    )
+    client = FakeJevClient(classification(domain="climate", action="set_temperature", target_area="Living room"))
     result = await route(
         "set heating to 21°C",
         [LIVING_CLIMATE, LIVING_LAMP],
@@ -460,9 +448,7 @@ async def test_climate_set_temperature_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_climate_set_temperature_unparsed_grok() -> None:
-    client = FakeJevClient(
-        classification(domain="climate", action="set_temperature", target_area="Living room")
-    )
+    client = FakeJevClient(classification(domain="climate", action="set_temperature", target_area="Living room"))
     result = await route(
         "make the heating a bit warmer",
         [LIVING_CLIMATE],
@@ -475,9 +461,7 @@ async def test_climate_set_temperature_unparsed_grok() -> None:
 
 @pytest.mark.asyncio
 async def test_climate_turn_off_fast() -> None:
-    client = FakeJevClient(
-        classification(domain="climate", action="turn_off", target_area="Living room")
-    )
+    client = FakeJevClient(classification(domain="climate", action="turn_off", target_area="Living room"))
     result = await route(
         "turn off the heating",
         [LIVING_CLIMATE],
@@ -491,9 +475,7 @@ async def test_climate_turn_off_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_climate_set_hvac_mode_fast() -> None:
-    client = FakeJevClient(
-        classification(domain="climate", action="set_hvac_mode", target_area="Living room")
-    )
+    client = FakeJevClient(classification(domain="climate", action="set_hvac_mode", target_area="Living room"))
     result = await route(
         "set the thermostat to cool",
         [LIVING_CLIMATE],
@@ -516,9 +498,7 @@ async def test_climate_whole_home_none_does_not_fire_all() -> None:
         name="Kitchen thermostat",
         area="Kitchen",
     )
-    client = FakeJevClient(
-        classification(domain="climate", action="turn_off", target_area="none")
-    )
+    client = FakeJevClient(classification(domain="climate", action="turn_off", target_area="none"))
     result = await route(
         "turn off the heating",
         [LIVING_CLIMATE, other],
@@ -531,9 +511,7 @@ async def test_climate_whole_home_none_does_not_fire_all() -> None:
 
 @pytest.mark.asyncio
 async def test_climate_explicit_area_no_entity_rejects() -> None:
-    client = FakeJevClient(
-        classification(domain="climate", action="turn_off", target_area="Kitchen")
-    )
+    client = FakeJevClient(classification(domain="climate", action="turn_off", target_area="Kitchen"))
     result = await route(
         "turn off kitchen heating",
         [LIVING_CLIMATE],
@@ -546,9 +524,7 @@ async def test_climate_explicit_area_no_entity_rejects() -> None:
 
 @pytest.mark.asyncio
 async def test_cover_open_fast() -> None:
-    client = FakeJevClient(
-        classification(domain="cover", action="open", target_area="bedroom")
-    )
+    client = FakeJevClient(classification(domain="cover", action="open", target_area="bedroom"))
     result = await route(
         "open the bedroom blinds",
         [BEDROOM_COVER, BEDROOM_LIGHT],
@@ -563,9 +539,7 @@ async def test_cover_open_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_cover_set_position_fast() -> None:
-    client = FakeJevClient(
-        classification(domain="cover", action="set_position", target_area="bedroom")
-    )
+    client = FakeJevClient(classification(domain="cover", action="set_position", target_area="bedroom"))
     result = await route(
         "set the bedroom blinds to 40%",
         [BEDROOM_COVER],
@@ -582,9 +556,7 @@ async def test_cover_set_position_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_cover_set_position_unparsed_grok() -> None:
-    client = FakeJevClient(
-        classification(domain="cover", action="set_position", target_area="bedroom")
-    )
+    client = FakeJevClient(classification(domain="cover", action="set_position", target_area="bedroom"))
     result = await route(
         "set the bedroom blinds halfway",
         [BEDROOM_COVER],
@@ -597,9 +569,7 @@ async def test_cover_set_position_unparsed_grok() -> None:
 
 @pytest.mark.asyncio
 async def test_cover_set_tilt_fast() -> None:
-    client = FakeJevClient(
-        classification(domain="cover", action="set_tilt", target_area="bedroom")
-    )
+    client = FakeJevClient(classification(domain="cover", action="set_tilt", target_area="bedroom"))
     result = await route(
         "tilt blinds to 50%",
         [BEDROOM_COVER],
@@ -618,9 +588,7 @@ async def test_cover_set_tilt_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_cover_set_tilt_de_fast() -> None:
-    client = FakeJevClient(
-        classification(domain="cover", action="set_tilt", target_area="bedroom")
-    )
+    client = FakeJevClient(classification(domain="cover", action="set_tilt", target_area="bedroom"))
     result = await route(
         "Lamellen auf 30%",
         [BEDROOM_COVER],
@@ -637,9 +605,7 @@ async def test_cover_set_tilt_de_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_cover_set_tilt_unparsed_grok() -> None:
-    client = FakeJevClient(
-        classification(domain="cover", action="set_tilt", target_area="bedroom")
-    )
+    client = FakeJevClient(classification(domain="cover", action="set_tilt", target_area="bedroom"))
     result = await route(
         "tilt the bedroom blinds halfway",
         [BEDROOM_COVER],
@@ -659,9 +625,7 @@ async def test_cover_set_tilt_name_token_with_none() -> None:
         name="Kitchen blind",
         area="Kitchen",
     )
-    client = FakeJevClient(
-        classification(domain="cover", action="set_tilt", target_area="none")
-    )
+    client = FakeJevClient(classification(domain="cover", action="set_tilt", target_area="none"))
     result = await route(
         "tilt the bedroom blinds to 50%",
         [BEDROOM_COVER, other],
@@ -678,9 +642,7 @@ async def test_cover_set_tilt_name_token_with_none() -> None:
 
 @pytest.mark.asyncio
 async def test_cover_sole_set_tilt_none_still_grok() -> None:
-    client = FakeJevClient(
-        classification(domain="cover", action="set_tilt", target_area="none")
-    )
+    client = FakeJevClient(classification(domain="cover", action="set_tilt", target_area="none"))
     result = await route("Neigung 20 Prozent", [BEDROOM_COVER], language="de", client=client)
     assert result.kind == "grok"
     assert result.reason == "no_named_or_area_target"
@@ -688,9 +650,7 @@ async def test_cover_sole_set_tilt_none_still_grok() -> None:
 
 @pytest.mark.asyncio
 async def test_cover_turn_off_alias_closes() -> None:
-    client = FakeJevClient(
-        classification(domain="cover", action="turn_off", target_area="bedroom")
-    )
+    client = FakeJevClient(classification(domain="cover", action="turn_off", target_area="bedroom"))
     result = await route(
         "close the bedroom blinds",
         [BEDROOM_COVER],
@@ -703,9 +663,7 @@ async def test_cover_turn_off_alias_closes() -> None:
 
 @pytest.mark.asyncio
 async def test_climate_sole_turn_off_with_none_fast() -> None:
-    client = FakeJevClient(
-        classification(domain="climate", action="turn_off", target_area="none")
-    )
+    client = FakeJevClient(classification(domain="climate", action="turn_off", target_area="none"))
     result = await route("Heizung aus", [LIVING_CLIMATE], language="de", client=client)
     assert result.kind == "fast_service"
     assert result.service == "turn_off"
@@ -714,9 +672,7 @@ async def test_climate_sole_turn_off_with_none_fast() -> None:
 
 @pytest.mark.asyncio
 async def test_climate_sole_set_temperature_none_still_grok() -> None:
-    client = FakeJevClient(
-        classification(domain="climate", action="set_temperature", target_area="none")
-    )
+    client = FakeJevClient(classification(domain="climate", action="set_temperature", target_area="none"))
     result = await route("set to 21°C", [LIVING_CLIMATE], language="en", client=client)
     assert result.kind == "grok"
     assert result.reason == "no_named_or_area_target"
@@ -730,9 +686,7 @@ async def test_cover_whole_home_none_does_not_fire_all() -> None:
         name="Kitchen blind",
         area="Kitchen",
     )
-    client = FakeJevClient(
-        classification(domain="cover", action="close", target_area="none")
-    )
+    client = FakeJevClient(classification(domain="cover", action="close", target_area="none"))
     result = await route(
         "close the blinds",
         [BEDROOM_COVER, other],
@@ -771,9 +725,7 @@ async def test_whole_home_scope_does_not_fire_wrong_room() -> None:
 
 @pytest.mark.asyncio
 async def test_whole_home_scope_sole_light_still_fast() -> None:
-    client = FakeJevClient(
-        classification(action="turn_off", target_area="none", scope="whole_home")
-    )
+    client = FakeJevClient(classification(action="turn_off", target_area="none", scope="whole_home"))
     result = await route("Licht aus", [LIVING_LAMP], language="de", client=client)
     assert result.kind == "fast_service"
     assert result.service == "turn_off"

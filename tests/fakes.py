@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 
-from jev_assist.jev_router import (
+from custom_components.jev_assist.jev_router import (
     ChoiceView,
     ExposedEntity,
     JevClassification,

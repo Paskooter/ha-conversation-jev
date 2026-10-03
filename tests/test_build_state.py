@@ -7,8 +7,12 @@ from enum import Enum
 
 import pytest
 
-from jev_assist.jev_client import build_questions, build_state, unique_areas
-from jev_assist.jev_router import ExposedEntity
+from custom_components.jev_assist.jev_client import (
+    build_questions,
+    build_state,
+    unique_areas,
+)
+from custom_components.jev_assist.jev_router import ExposedEntity
 
 
 class ComputedNameType(Enum):

@@ -7,3 +7,9 @@ venv/
 .coverage
 htmlcov/
 .DS_Store
+.ruff_cache/
+.venv-*/
+dist/
+.env
+*.pem
+*.key

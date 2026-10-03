@@ -1,69 +1,74 @@
 {
+  "title": "Jev Assist",
   "config": {
     "abort": {
       "already_configured": "Jev Assist is already configured.",
-      "oauth_failed": "Grok sign-in was cancelled.",
-      "reauth_successful": "Grok was reauthenticated."
+      "reauth_successful": "Jev API key updated.",
+      "reconfigure_successful": "Jev provider and API key updated."
     },
     "error": {
-      "invalid_api_key": "Enter a non-empty API key.",
-      "oauth_failed": "Grok sign-in failed. You can retry OAuth, use an API key, or abort.",
-      "cannot_connect": "Could not reach the authentication server."
-    },
-    "progress": {
-      "oauth_wait": "Sign in with Grok (uses Grok CLI OAuth client).\n\nOpen {url} and enter this code: **{user_code}**."
+      "invalid_api_key": "Enter a valid API key without internal spaces.",
+      "invalid_provider": "Select OpenRouter or TypeSafe.",
+      "invalid_auth": "The provider rejected this API key. Check its permissions.",
+      "rate_limited": "The provider rate limit was reached. Wait and try again.",
+      "cannot_connect": "Could not reach the Jev provider. Check Internet access and try again.",
+      "provider_error": "The provider could not serve Jev. Check your account credit and model availability."
     },
     "step": {
       "user": {
         "title": "Jev Assist",
-        "description": "TypeSafe/Jev uses an API key from typesafe.ai (the same key if issued via Vercel). Grok sign-in is OAuth by default (Grok CLI public client). A Grok API key is only a fallback when OAuth entitlement is missing or you bill via console.x.ai.",
+        "description": "OpenRouter uses your OpenRouter API key for Jev classification; no TypeSafe account is needed. Setup makes one small synthetic classification request to validate the key. Grok sign-in belongs to SpaceXAI. Use Configure after setup to choose its Grok conversation agent.",
         "data": {
-          "typesafe_api_key": "TypeSafe / Jev API key (typesafe.ai)",
-          "grok_auth_method": "Grok authentication"
+          "provider": "Jev provider",
+          "api_key": "Provider API key"
         },
         "data_description": {
-          "typesafe_api_key": "From typesafe.ai (source of truth). The same key if it was issued via Vercel. Stored in the Home Assistant config entry.",
-          "grok_auth_method": "Primary: Sign in with Grok (uses Grok CLI OAuth client). Fallback: API key for https://api.x.ai."
+          "api_key": "Stored in Home Assistant. Enter the key for the selected provider. Never share your config entry or paste keys in an issue."
         }
       },
-      "oauth": {
-        "title": "Sign in with Grok (uses Grok CLI OAuth client)"
-      },
-      "oauth_failed": {
-        "title": "Grok sign-in did not complete",
-        "description": "Device-code OAuth failed ({error}). Retry OAuth, use a Grok API key as a fallback, or abort.",
+      "reconfigure": {
+        "title": "Change Jev provider",
+        "description": "OpenRouter uses your OpenRouter API key for Jev classification; no TypeSafe account is needed. Setup makes one small synthetic classification request to validate the key. Grok sign-in belongs to SpaceXAI. Use Configure after setup to choose its Grok conversation agent.",
         "data": {
-          "oauth_recovery": "Next step"
-        }
-      },
-      "api_key": {
-        "title": "Grok API key (fallback)",
-        "description": "Use a console.x.ai API key when OAuth entitlement is missing or you bill via the developer API at https://api.x.ai. This is not the default.",
-        "data": {
-          "grok_api_key": "Grok API key"
+          "provider": "Jev provider",
+          "api_key": "Provider API key"
+        },
+        "data_description": {
+          "api_key": "Stored in Home Assistant. Enter the key for the selected provider. Never share your config entry or paste keys in an issue."
         }
       },
       "reauth_confirm": {
-        "title": "Reauthenticate Grok",
-        "description": "Grok tokens are missing or were rejected. Sign in with Grok again (OAuth), or use an API key fallback.",
+        "title": "Update Jev API key",
+        "description": "OpenRouter uses your OpenRouter API key for Jev classification; no TypeSafe account is needed. Setup makes one small synthetic classification request to validate the key. Grok sign-in belongs to SpaceXAI. Use Configure after setup to choose its Grok conversation agent.",
         "data": {
-          "grok_auth_method": "Grok authentication"
+          "provider": "Jev provider",
+          "api_key": "Provider API key"
+        },
+        "data_description": {
+          "api_key": "Stored in Home Assistant. Enter the key for the selected provider. Never share your config entry or paste keys in an issue."
         }
       }
     }
   },
-  "selector": {
-    "grok_auth_method": {
-      "options": {
-        "oauth": "Sign in with Grok (uses Grok CLI OAuth client)",
-        "api_key": "Grok API key (console billing fallback)"
+  "options": {
+    "step": {
+      "init": {
+        "title": "Conversation fallback",
+        "description": "Select the installed Grok agent to use your subscription. Sign in inside SpaceXAI; Jev does not store a separate Grok login. Home Assistant is a local fallback when no Grok agent is configured.",
+        "data": {
+          "grok_handoff_agent_id": "Fallback conversation agent"
+        }
       }
     },
-    "oauth_recovery": {
+    "error": {
+      "invalid_agent": "Choose an installed conversation agent. Jev cannot hand off to itself."
+    }
+  },
+  "selector": {
+    "provider": {
       "options": {
-        "retry_oauth": "Retry Grok OAuth",
-        "api_key": "Use a Grok API key",
-        "abort": "Abort"
+        "openrouter": "OpenRouter (Jev billed to your OpenRouter account)",
+        "typesafe": "TypeSafe (direct Jev API)"
       }
     }
   }

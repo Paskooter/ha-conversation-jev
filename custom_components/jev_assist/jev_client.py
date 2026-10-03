@@ -2,13 +2,25 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any, Sequence
 
-from typesafe_sdk import AsyncTypeSafeClient, Choice, Noul, RetryPolicy, SystemOneResponse
+import httpcore2  # noqa: F401 — preload httpx2's otherwise lazy transport imports
+import httpx2
+from homeassistant.util.ssl import get_default_context
+from typesafe_sdk import (
+    AsyncTypeSafeClient,
+    Choice,
+    Noul,
+    RetryPolicy,
+    SystemOneResponse,
+)
 
 from . import criteria
 from .const import (
     EXPOSED_ENTITY_CAP,
+    PROVIDER_TYPESAFE,
+    PROVIDER_URLS,
     TARGET_NONE,
     TARGET_UNKNOWN,
     TYPESAFE_MODEL,
@@ -22,6 +34,13 @@ from .jev_router import (
     NoulView,
     normalize_language,
 )
+
+
+def _new_http_client() -> httpx2.AsyncClient:
+    """Use HA's warmed TLS context without certificate I/O in the event loop."""
+    return httpx2.AsyncClient(
+        verify=get_default_context(), trust_env=False, follow_redirects=False, timeout=TYPESAFE_TIMEOUT
+    )
 
 
 def localized_options(options: dict[str, dict[str, str]], language: str) -> dict[str, str]:
@@ -82,9 +101,7 @@ def build_state(
 def build_questions(language: str, areas: Sequence[str]) -> dict[str, Choice | Noul]:
     """Speculative fan-out: all Choice/Noul questions in one system_one call."""
     # Area names may be HA ComputedNameType Enums; Choice criteria must stay JSON-safe.
-    area_criteria: dict[str, str] = {
-        _plain_text(area): _plain_text(area) for area in areas
-    }
+    area_criteria: dict[str, str] = {_plain_text(area): _plain_text(area) for area in areas}
     area_criteria[TARGET_NONE] = criteria.TARGET_AREA_NONE[language]
     area_criteria[TARGET_UNKNOWN] = criteria.TARGET_AREA_UNKNOWN[language]
     return {
@@ -167,9 +184,36 @@ def classification_from_sdk(result: SystemOneResponse) -> JevClassification:
 class TypeSafeJevClient:
     """Thin async wrapper around ``AsyncTypeSafeClient``."""
 
-    def __init__(self, api_key: str, *, model: str = TYPESAFE_MODEL) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        provider: str = PROVIDER_TYPESAFE,
+        model: str = TYPESAFE_MODEL,
+    ) -> None:
         self._api_key = api_key
         self._model = model
+        # Explicit, fixed URLs prevent environment variables from sending one
+        # provider's key or household metadata to a different destination.
+        self._base_url = PROVIDER_URLS[provider]
+
+    async def async_validate(self) -> None:
+        """Validate credentials through System One without sending household data."""
+        async with asyncio.timeout(TYPESAFE_TIMEOUT), self._client() as client:
+            await client.system_one(
+                state={"connection_test": "synthetic"},
+                questions={"connection": Noul(instructions="Is this a connection test?")},
+            )
+
+    def _client(self) -> AsyncTypeSafeClient:
+        return AsyncTypeSafeClient(
+            api_key=self._api_key,
+            base_url=self._base_url,
+            model=self._model,
+            retry=RetryPolicy(max_retries=TYPESAFE_RETRY_MAX),
+            timeout=TYPESAFE_TIMEOUT,
+            http_client=_new_http_client(),
+        )
 
     async def classify(
         self,
@@ -182,11 +226,6 @@ class TypeSafeJevClient:
         capped = list(exposed)[:EXPOSED_ENTITY_CAP]
         state = build_state(utterance, capped, lang)
         questions = build_questions(lang, unique_areas(capped))
-        async with AsyncTypeSafeClient(
-            api_key=self._api_key,
-            model=self._model,
-            retry=RetryPolicy(max_retries=TYPESAFE_RETRY_MAX),
-            timeout=TYPESAFE_TIMEOUT,
-        ) as client:
+        async with asyncio.timeout(TYPESAFE_TIMEOUT), self._client() as client:
             result = await client.system_one(state=state, questions=questions)
         return classification_from_sdk(result)
