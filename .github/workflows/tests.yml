@@ -28,7 +28,10 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          ignore: brands
+          # Upstream has no declared source license. This is a custom HACS
+          # repository, not a submission to its default catalogue; preserve
+          # that status instead of relicensing the upstream code.
+          ignore: brands,license
   hassfest:
     runs-on: ubuntu-latest
     steps:

@@ -15,3 +15,5 @@ CI runs 2026.8.1 and 2026.9.4 plus HACS and hassfest validation. Provider tests 
 The companion Phoenix repository also checks both integrations together over a real isolated TLS connector and Gateway turn. See its CONTRIBUTING.md and set JEV_PROJECT_DIR to this repository when running those tests.
 
 Make a flat release asset containing the files from custom_components/jev_assist, with manifest.json at the zip root. HACS installs it inside that domain's directory. Never include tests, keys, .storage, caches, robot captures or operator notes in the archive. Use a new version and immutable tag for every release.
+
+HACS CI excludes brands (no catalogue icon submission) and the action-only license check because upstream declares no source license. See UPSTREAM.md. Runtime/custom-repository structure and manifest checks remain enabled; this fork is not submitted to the default catalogue.
