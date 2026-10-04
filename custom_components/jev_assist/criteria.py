@@ -1,6 +1,6 @@
 """DE/EN TypeSafe question constants for Jev Assist.
 
-Light, climate, and cover map to ``fast_service`` when gates pass.
+Light, climate, cover, and explicit scenes/scripts map to ``fast_service`` when gates pass.
 Other domains go to Grok. Categories stay ``command | conversation | reject``.
 
 Instructions use backticked JSON paths into the structured ``state`` object
@@ -89,6 +89,10 @@ DOMAIN_OPTIONS: Final[dict[str, dict[str, str]]] = {
         "en": "Activating a named scene or preset.",
         "de": "Aktivieren einer benannten Szene oder Vorgabe.",
     },
+    "script": {
+        "en": "Starting one explicitly named Home Assistant script.",
+        "de": "Starten eines ausdrücklich benannten Home-Assistant-Skripts.",
+    },
     "other": {
         "en": "Any other domain, or the domain is unclear.",
         "de": "Jede andere Domäne, oder die Domäne ist unklar.",
@@ -122,6 +126,14 @@ ACTION_OPTIONS: Final[dict[str, dict[str, str]]] = {
     "set_brightness": {
         "en": ("Set or change light brightness or dim level (including relative dimmer/brighter)."),
         "de": ("Helligkeit oder Dimmstufe eines Lichts setzen oder ändern (einschließlich relativ dimmen/heller)."),
+    },
+    "set_color": {
+        "en": "Set a light to one explicitly named color, not brightness or color temperature.",
+        "de": "Ein Licht auf eine ausdrücklich genannte Farbe setzen, nicht Helligkeit oder Farbtemperatur.",
+    },
+    "activate": {
+        "en": "Activate one explicitly named scene or start one explicitly named script.",
+        "de": "Eine ausdrücklich benannte Szene aktivieren oder ein ausdrücklich benanntes Skript starten.",
     },
     "set_temperature": {
         "en": "Set a thermostat or climate target temperature (setpoint in degrees).",
@@ -235,6 +247,15 @@ TARGET_AREA_INSTRUCTIONS: Final[dict[str, str]] = {
     ),
 }
 
+# Context comes only from the HA device registry and a short lived exposed-target
+# memory. It supplies evidence, not permission to execute or lower confidence.
+for _language, _guidance in {
+    "en": " If `device_context` is present, its area resolves here/this room and bare room device commands; its target_entity_ids resolve it/them only. Explicit names/areas take precedence and whole-home scope never inherits this context.",
+    "de": " Falls `device_context` vorhanden ist, löst dessen Bereich hier/diesen Raum und einfache Raumbefehle auf; target_entity_ids löst nur es/sie auf. Explizite Namen/Bereiche haben Vorrang; das ganze Haus übernimmt diesen Kontext nie.",
+}.items():
+    DOMAIN_INSTRUCTIONS[_language] += _guidance
+    TARGET_AREA_INSTRUCTIONS[_language] += _guidance
+
 TARGET_AREA_NONE: Final[dict[str, str]] = {
     "en": "No specific area, whole home, or area not mentioned.",
     "de": "Kein bestimmter Bereich, ganzes Haus, oder Bereich nicht genannt.",
@@ -250,13 +271,17 @@ NOUL_NEEDS_LLM: Final[dict[str, str]] = {
         "Does `utterance` need a generative LLM (Grok) rather than a single "
         "deterministic Home Assistant service call: questions, explanations, "
         "planning, relative or underspecified commands, or anything that "
-        "requires generated text?"
+        "requires generated text? Clear colors, numeric or spelled-out absolute percentages, "
+        "and one exact named scene/script are deterministic; resolved device_context pronouns "
+        "do not require generated text."
     ),
     "de": (
         "Braucht `utterance` ein generatives LLM (Grok) statt eines einzelnen "
         "deterministischen Home-Assistant-Serviceaufrufs: Fragen, Erklärungen, "
         "Planung, relative oder unterspezifizierte Befehle, oder alles, das "
-        "generierten Text erfordert?"
+        "generierten Text erfordert? Klare Farben, absolute ausgeschriebene Prozentwerte "
+        "und eine exakt benannte Szene/ein Skript sind deterministisch. Aufgelöste "
+        "device_context-Pronomen brauchen keinen generierten Text."
     ),
 }
 

@@ -143,6 +143,7 @@ def test_exposed_entities_coerces_computed_name(
         lambda _hass: SimpleNamespace(async_get=lambda _eid: entry),
         raising=False,
     )
+    monkeypatch.setattr(conversation_mod.er, "async_get_entity_aliases", lambda _hass, entry: entry.aliases)
     monkeypatch.setattr(
         conversation_mod.ar,
         "async_get",

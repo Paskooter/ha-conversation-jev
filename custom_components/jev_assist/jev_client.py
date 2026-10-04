@@ -74,6 +74,9 @@ def build_state(
     utterance: str,
     exposed: Sequence[ExposedEntity],
     language: str,
+    *,
+    room: str | None = None,
+    followup_entity_ids: Sequence[str] = (),
 ) -> dict[str, Any]:
     """Named JSON object for system_one (utterance, language, entities, areas).
 
@@ -81,7 +84,7 @@ def build_state(
     values are coerced to ``str`` so HA ``ComputedNameType`` never reaches JSON.
     """
     capped = list(exposed)[:EXPOSED_ENTITY_CAP]
-    return {
+    state = {
         "utterance": _plain_text(utterance),
         "language": _plain_text(language),
         "exposed_entities": [
@@ -96,6 +99,9 @@ def build_state(
         ],
         "areas": unique_areas(capped),
     }
+    if room or followup_entity_ids:
+        state["device_context"] = {"area": room, "target_entity_ids": list(followup_entity_ids)}
+    return state
 
 
 def build_questions(language: str, areas: Sequence[str]) -> dict[str, Choice | Noul]:
@@ -222,9 +228,27 @@ class TypeSafeJevClient:
         *,
         language: str,
     ) -> JevClassification:
+        return await self.classify_with_context(utterance, exposed, language=language)
+
+    async def classify_with_context(
+        self,
+        utterance: str,
+        exposed: Sequence[ExposedEntity],
+        *,
+        language: str,
+        room: str | None = None,
+        followup_entity_ids: Sequence[str] = (),
+    ) -> JevClassification:
         lang = normalize_language(language)
         capped = list(exposed)[:EXPOSED_ENTITY_CAP]
-        state = build_state(utterance, capped, lang)
+        visible_ids = {item.entity_id for item in capped}
+        state = build_state(
+            utterance,
+            capped,
+            lang,
+            room=room,
+            followup_entity_ids=[entity_id for entity_id in followup_entity_ids if entity_id in visible_ids],
+        )
         questions = build_questions(lang, unique_areas(capped))
         async with asyncio.timeout(TYPESAFE_TIMEOUT), self._client() as client:
             result = await client.system_one(state=state, questions=questions)

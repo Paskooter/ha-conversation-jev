@@ -1,6 +1,6 @@
 """Jev Assist: a classifier with an explicitly selected Assist fallback."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -24,6 +24,7 @@ class JevAssistRuntime:
 
     jev: TypeSafeJevClient
     entry: ConfigEntry
+    route_counts: dict[str, int] = field(default_factory=dict)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

@@ -1,5 +1,7 @@
 """Cover service map and position / tilt percent parsing."""
 
+import pytest
+
 from custom_components.jev_assist.cover_map import (
     cover_service_call,
     parse_position_pct,
@@ -21,6 +23,33 @@ def test_parse_position_percent_de() -> None:
 def test_parse_rejects_over_100() -> None:
     assert parse_position_pct("150%") is None
     assert parse_tilt_pct("150%") is None
+
+
+@pytest.mark.parametrize(
+    "utterance",
+    [
+        "set to20.5percent",
+        "set to-50percent",
+        "set to1000percent",
+        "set to 50,5 percent",
+        "set to - 50 percent",
+        "set to −50 percent",
+        "set to +50 percent",
+        "set to 20.5.5 percent",
+        "set to 20 percent or 50 percent",
+    ],
+)
+def test_cover_requires_one_complete_unsigned_integer(utterance: str) -> None:
+    assert parse_position_pct(utterance) is None
+    assert parse_tilt_pct(utterance) is None
+    assert cover_service_call("set_position", ["cover.study"], utterance) is None
+    assert cover_service_call("set_tilt", ["cover.study"], utterance) is None
+
+
+@pytest.mark.parametrize("value", [0, 100])
+def test_cover_integer_boundaries(value: int) -> None:
+    assert parse_position_pct(f"set to{value}percent") == value
+    assert parse_tilt_pct(f"set to {value}%") == value
 
 
 def test_open_close_stop() -> None:

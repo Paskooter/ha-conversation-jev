@@ -1,5 +1,7 @@
 """Climate service map, temperature parsing, HVAC mode parsing."""
 
+import pytest
+
 from custom_components.jev_assist.climate_map import (
     climate_service_call,
     parse_hvac_mode,
@@ -28,6 +30,41 @@ def test_parse_temperature_rejects_percent_and_range() -> None:
     assert parse_temperature_c("make it 40 Grad") is None
     assert parse_temperature_c("set to 3 degrees") is None
     assert parse_temperature_c("a bit warmer") is None
+
+
+@pytest.mark.parametrize(
+    "utterance",
+    [
+        "set to121degrees",
+        "set to-20degrees",
+        "set to - 20 degrees",
+        "set to −20 degrees",
+        "set heating to -20",
+        "set heating to 121",
+        "set to 35.1 degrees",
+        "set to 21.5.5 degrees",
+        "set to +20 degrees",
+        "set to 20 degrees or 21 degrees",
+    ],
+)
+def test_temperature_requires_one_complete_unsigned_literal(utterance: str) -> None:
+    assert parse_temperature_c(utterance) is None
+    assert climate_service_call("set_temperature", ["climate.study"], utterance) is None
+
+
+@pytest.mark.parametrize(
+    "utterance,value",
+    [
+        ("set to5degrees", 5),
+        ("set to35degrees", 35),
+        ("set to20.5degrees", 20.5),
+        ("set to20,5degrees", 20.5),
+        ("set heating to 5", 5),
+        ("set heating to 35", 35),
+    ],
+)
+def test_temperature_complete_literals_keep_boundaries_and_decimals(utterance: str, value: float) -> None:
+    assert parse_temperature_c(utterance) == value
 
 
 def test_parse_hvac_mode() -> None:

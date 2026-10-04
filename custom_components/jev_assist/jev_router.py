@@ -1,4 +1,4 @@
-"""Jev routing: fast HA light/climate/cover service, Grok fallback, or reject."""
+"""Jev routing: local state questions, confidence-gated HA actions and fallback."""
 
 from __future__ import annotations
 
@@ -25,6 +25,15 @@ from .const import (
 )
 from .cover_map import COVER_ACTION_MAP, cover_service_call
 from .light_map import LIGHT_ACTION_MAP, light_service_call
+from .local_targets import (
+    PRONOUN_REFERENCE,
+    ROOM_REFERENCE,
+    entity_names,
+    exact_named_targets,
+    exact_routine_targets,
+    has_unscoped_all,
+    normalized,
+)
 
 _TOKEN_RE = re.compile(r"[a-z0-9äöüß]+", re.IGNORECASE)
 _STOP_TOKENS = frozenset(
@@ -150,6 +159,7 @@ _SOLE_FAST_ACTIONS: dict[str, frozenset[str]] = {
 }
 _UNPARSED_REASONS: dict[str, str] = {
     "set_brightness": "brightness_unparsed",
+    "set_color": "color_unparsed",
     "set_temperature": "temperature_unparsed",
     "set_hvac_mode": "hvac_mode_unparsed",
     "set_position": "position_unparsed",
@@ -157,7 +167,7 @@ _UNPARSED_REASONS: dict[str, str] = {
 }
 _COVER_PHRASES = ("garage door", "garage doors")
 
-RouteKind = Literal["fast_service", "grok", "reject"]
+RouteKind = Literal["fast_service", "fast_query", "grok", "reject"]
 
 
 @dataclass(frozen=True)
@@ -169,6 +179,7 @@ class ExposedEntity:
     name: str
     area: str | None = None
     aliases: tuple[str, ...] = ()
+    device_class: str | None = None
 
     def __post_init__(self) -> None:
         # HA entity_registry aliases are AliasEntry = str | ComputedNameType.
@@ -177,6 +188,7 @@ class ExposedEntity:
         object.__setattr__(self, "name", str(self.name))
         object.__setattr__(self, "area", None if self.area is None else str(self.area))
         object.__setattr__(self, "aliases", tuple(str(alias) for alias in self.aliases))
+        object.__setattr__(self, "device_class", None if self.device_class is None else str(self.device_class))
 
 
 @dataclass(frozen=True)
@@ -218,6 +230,8 @@ class RouteResult:
     service: str | None = None
     service_data: dict[str, Any] | None = None
     classification: JevClassification | None = None
+    target_entity_ids: tuple[str, ...] = ()
+    query_property: str = "state"
 
 
 class JevClientProtocol(Protocol):
@@ -273,24 +287,6 @@ def _confident_whole_home(classification: JevClassification) -> bool:
 
 def _words(text: str) -> set[str]:
     return {match.group(0).casefold() for match in _TOKEN_RE.finditer(text)}
-
-
-def _entity_name_tokens(entity: ExposedEntity) -> set[str]:
-    """Distinctive name tokens (not domain generics / stopwords)."""
-    blob = " ".join(
-        (
-            entity.name,
-            entity.entity_id.split(".", 1)[-1].replace("_", " "),
-            *entity.aliases,
-        )
-    )
-    generics = _GENERIC_TOKENS_BY_DOMAIN.get(entity.domain, frozenset())
-    return {token for token in _words(blob) if len(token) >= 3 and token not in _STOP_TOKENS and token not in generics}
-
-
-def _name_matched_entities(utterance: str, items: Sequence[ExposedEntity]) -> list[ExposedEntity]:
-    uttered = _words(utterance)
-    return [item for item in items if _entity_name_tokens(item) & uttered]
 
 
 def _unique_area_names(exposed: Sequence[ExposedEntity]) -> list[str]:
@@ -389,10 +385,14 @@ def _resolve_targets(
         if not scoped:
             return [], missing
         return scoped, None
-    named = _name_matched_entities(utterance, of_domain)
+    named = exact_named_targets(utterance, of_domain)
     if named:
         return named, None
-    if action in _SOLE_FAST_ACTIONS.get(domain, frozenset()) and len(of_domain) == 1:
+    if (
+        action in _SOLE_FAST_ACTIONS.get(domain, frozenset())
+        and len(of_domain) == 1
+        and _bare_room_target(utterance, domain, allow_all=True)
+    ):
         return of_domain, None
     return [], "no_named_or_area_target"
 
@@ -401,6 +401,9 @@ def apply_gates(
     utterance: str,
     exposed: Sequence[ExposedEntity],
     classification: JevClassification,
+    *,
+    room: str | None = None,
+    followup_entity_ids: Sequence[str] = (),
 ) -> RouteResult:
     """Apply CONTRACT.md gates to a Jev classification."""
     cat = classification.category
@@ -419,7 +422,12 @@ def apply_gates(
 
     named_areas = named_areas_in_utterance(utterance, exposed)
     domain_choice = classification.domain.choice
-    action_map = _FAST_ACTION_MAPS.get(domain_choice, {})
+    routine = domain_choice in {"scene", "script"}
+    action_map = (
+        {"activate": (domain_choice, "turn_on"), "turn_on": (domain_choice, "turn_on")}
+        if routine
+        else _FAST_ACTION_MAPS.get(domain_choice, {})
+    )
     multi_area = (
         domain_choice in _FAST_ACTION_MAPS
         and classification.action.choice in action_map
@@ -457,7 +465,7 @@ def apply_gates(
             reason="not_fast_command",
             classification=classification,
         )
-    if not _choice_ok(classification.domain) or domain_choice not in _FAST_ACTION_MAPS:
+    if not _choice_ok(classification.domain) or domain_choice not in _FAST_ACTION_MAPS and not routine:
         return RouteResult(
             kind="grok",
             reason="domain_unmapped",
@@ -477,14 +485,106 @@ def apply_gates(
         )
 
     target_area = TARGET_NONE if whole_home else classification.target_area.choice
-    targets, target_reason = _resolve_targets(
-        utterance,
-        exposed,
-        domain_choice,
-        target_area,
-        named_areas,
-        action=classification.action.choice,
-    )
+    if routine:
+        targets = exact_routine_targets(utterance, exposed, domain_choice)
+        if len(targets) != 1:
+            return RouteResult(kind="reject", reason="routine_explicit_target_required", classification=classification)
+        return RouteResult(
+            kind="fast_service",
+            reason="named_routine",
+            domain=domain_choice,
+            service="turn_on",
+            service_data={"entity_id": targets[0].entity_id},
+            classification=classification,
+            target_entity_ids=(targets[0].entity_id,),
+        )
+    explicit_names = exact_named_targets(utterance, [item for item in exposed if item.domain == domain_choice])
+    if not explicit_names and len(named_areas) == 1 and not whole_home:
+        target_area = named_areas[0]
+    if not explicit_names and not multi_area and target_area == TARGET_UNKNOWN:
+        return RouteResult(kind="grok", reason="target_area_unknown", classification=classification)
+    if (
+        not explicit_names
+        and not multi_area
+        and target_area not in {TARGET_NONE, TARGET_UNKNOWN, ""}
+        and not any(
+            item.domain == domain_choice and (item.area or "").casefold() == target_area.casefold() for item in exposed
+        )
+    ):
+        return RouteResult(kind="reject", reason=f"no_exposed_{domain_choice}", classification=classification)
+    if explicit_names and not multi_area and len(explicit_names) != 1:
+        return RouteResult(kind="reject", reason="target_name_ambiguous", classification=classification)
+    if any(
+        len([item for item in explicit_names if name in entity_names(item)]) > 1
+        and re.search(r"(?<!\w)" + re.escape(name) + r"(?!\w)", normalized(utterance))
+        for name in {name for item in explicit_names for name in entity_names(item)}
+    ):
+        return RouteResult(kind="reject", reason="target_name_ambiguous", classification=classification)
+    target_text = normalized(utterance)
+    parameter_text = utterance.casefold()
+    for name in sorted(
+        {name for item in explicit_names for name in entity_names(item)} | {normalized(area) for area in named_areas},
+        key=len,
+        reverse=True,
+    ):
+        target_text = re.sub(r"(?<!\w)" + re.escape(name) + r"(?!\w)", " ", target_text)
+        parameter_text = re.sub(
+            r"(?<!\w)" + r"[\W_]+".join(re.escape(word) for word in name.split()) + r"(?!\w)",
+            " ",
+            parameter_text,
+        )
+    value_mapped = _FAST_SERVICE_CALLS[domain_choice](classification.action.choice, ["_value_check"], parameter_text)
+    if value_mapped is not None and not _bare_room_target(
+        target_text, domain_choice, allow_all=True, require_domain=False
+    ):
+        return RouteResult(kind="reject", reason="unknown_named_target", classification=classification)
+    if (
+        classification.action.choice in {"set_temperature", "set_position", "set_tilt"}
+        and len(re.findall(r"(?<!\w)-?\d+(?:[.,]\d+)?", parameter_text)) > 1
+    ):
+        return RouteResult(kind="grok", reason="mixed_values", classification=classification)
+    if classification.action.choice == "set_color":
+        from .light_map import NAMED_COLORS
+
+        if len([word for word in target_text.split() if word in NAMED_COLORS]) != 1:
+            return RouteResult(kind="grok", reason="color_unparsed", classification=classification)
+    if ROOM_REFERENCE.search(utterance) and not room and not named_areas and not explicit_names:
+        return RouteResult(kind="reject", reason="device_room_missing", classification=classification)
+    if explicit_names:
+        targets, target_reason = explicit_names, None
+    elif not named_areas and PRONOUN_REFERENCE.search(utterance):
+        if (
+            not followup_entity_ids
+            and _FAST_SERVICE_CALLS[domain_choice](classification.action.choice, ["_value_check"], parameter_text)
+            is None
+        ):
+            return RouteResult(
+                kind="grok",
+                reason=_UNPARSED_REASONS.get(classification.action.choice, "action_unmapped"),
+                classification=classification,
+            )
+        wanted = set(followup_entity_ids)
+        targets = [item for item in exposed if item.entity_id in wanted and item.domain == domain_choice]
+        if not wanted or len(targets) != len(wanted):
+            return RouteResult(kind="reject", reason="followup_target_missing", classification=classification)
+        target_reason = None
+    else:
+        if (
+            not whole_home
+            and not named_areas
+            and not explicit_names
+            and room
+            and _bare_room_target(utterance, domain_choice)
+        ):
+            target_area = room
+        targets, target_reason = _resolve_targets(
+            utterance,
+            exposed,
+            domain_choice,
+            target_area,
+            named_areas,
+            action=classification.action.choice,
+        )
     if not targets:
         kind: RouteKind = "reject" if (target_reason or "").startswith("no_exposed_") else "grok"
         return RouteResult(
@@ -496,7 +596,7 @@ def apply_gates(
     mapped = _FAST_SERVICE_CALLS[domain_choice](
         classification.action.choice,
         [item.entity_id for item in targets],
-        utterance,
+        parameter_text,
     )
     if mapped is None:
         return RouteResult(
@@ -512,7 +612,106 @@ def apply_gates(
         service=service,
         service_data=data,
         classification=classification,
+        target_entity_ids=tuple(item.entity_id for item in targets),
     )
+
+
+def _bare_room_target(utterance: str, domain: str, *, allow_all: bool = False, require_domain: bool = True) -> bool:
+    """Only a generic device phrase may take the robot's room implicitly."""
+    from .light_map import _NUMBER_WORDS, NAMED_COLORS
+
+    words = _words(utterance)
+    if (
+        require_domain
+        and not words & _GENERIC_TOKENS_BY_DOMAIN.get(domain, frozenset())
+        or not allow_all
+        and has_unscoped_all(utterance)
+    ):
+        return False
+    allowed = (
+        _STOP_TOKENS
+        | _GENERIC_TOKENS_BY_DOMAIN.get(domain, frozenset())
+        | {
+            "switch",
+            "brightness",
+            "dim",
+            "dimm",
+            "dimme",
+            "helligkeit",
+            "percent",
+            "prozent",
+            "degrees",
+            "degree",
+            "grad",
+            "celsius",
+            "color",
+            "colour",
+            "farbe",
+            "here",
+            "this",
+            "room",
+            "hier",
+            "diesem",
+            "raum",
+            "at",
+            "open",
+            "close",
+            "stop",
+            "öffne",
+            "schließe",
+            "position",
+            "tilt",
+            "heat",
+            "cool",
+            "auto",
+            "heizen",
+            "kühlen",
+            "mode",
+            "modus",
+            "lamellen",
+            "neigung",
+            "slats",
+            "slat",
+            "c",
+            "f",
+            "fahrenheit",
+            "procent",
+            "hvac",
+            "fan_only",
+            "heat_cool",
+            "dry",
+            "fan",
+            "only",
+            "heatcool",
+            "um",
+            "umschalten",
+            "an",
+            "ein",
+            "öffnen",
+            "oeffne",
+            "schließen",
+            "schliessen",
+            "schließe",
+            "schliesse",
+            "öffne",
+            "them",
+            "that",
+            "one",
+            "those",
+            "es",
+            "sie",
+            "theirs",
+            "start",
+            "enable",
+            "disable",
+            "or",
+            "oder",
+        }
+        | ({"garage", "door"} if domain == DOMAIN_COVER else set())
+        | set(NAMED_COLORS)
+        | {token for number in _NUMBER_WORDS for token in number.split()}
+    )
+    return all(word in allowed or word.isdecimal() for word in words)
 
 
 async def route(
@@ -521,11 +720,26 @@ async def route(
     *,
     language: str,
     client: JevClientProtocol,
+    room: str | None = None,
+    followup_entity_ids: Sequence[str] = (),
 ) -> RouteResult:
-    """Classify with Jev and route to ``fast_service``, ``grok``, or ``reject``."""
-    classification = await client.classify(
-        utterance,
-        exposed,
-        language=normalize_language(language),
-    )
-    return apply_gates(utterance, exposed, classification)
+    """Read supported questions locally; classify and gate other requests."""
+    from .home_query import parse_home_query
+
+    query = parse_home_query(utterance, exposed, room=room, followup_entity_ids=followup_entity_ids)
+    if query is not None:
+        return RouteResult(
+            kind="fast_query", reason=query.reason, target_entity_ids=query.entity_ids, query_property=query.property
+        )
+    contextual_classify = getattr(client, "classify_with_context", None)
+    if contextual_classify is not None and (room or followup_entity_ids):
+        classification = await contextual_classify(
+            utterance,
+            exposed,
+            language=normalize_language(language),
+            room=room,
+            followup_entity_ids=followup_entity_ids,
+        )
+    else:
+        classification = await client.classify(utterance, exposed, language=normalize_language(language))
+    return apply_gates(utterance, exposed, classification, room=room, followup_entity_ids=followup_entity_ids)

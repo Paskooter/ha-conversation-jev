@@ -1,6 +1,6 @@
 [project]
 name = "jev-assist-openrouter"
-version = "0.2.0b1"
+version = "0.3.0b1"
 description = "Home Assistant Jev classifier with OpenRouter and configurable Assist fallback"
 requires-python = ">=3.14.2"
 

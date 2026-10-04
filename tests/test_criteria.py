@@ -48,6 +48,8 @@ def test_action_keys_align_with_fast_maps() -> None:
         "turn_off",
         "toggle",
         "set_brightness",
+        "set_color",
+        "activate",
         "set_temperature",
         "set_hvac_mode",
         "open",
@@ -63,6 +65,7 @@ def test_action_keys_align_with_fast_maps() -> None:
         "turn_off",
         "toggle",
         "set_brightness",
+        "set_color",
     }
     assert set(CLIMATE_ACTION_MAP) == {
         "set_temperature",

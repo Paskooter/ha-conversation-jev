@@ -21,7 +21,7 @@ CONF_TYPESAFE_API_KEY: Final = "typesafe_api_key"
 CONF_PROVIDER: Final = "provider"
 CONF_API_KEY: Final = "api_key"
 
-# Router gates (CONTRACT.md v1, blessed). Thresholds are code policy.
+# Router gates (CONTRACT.md, blessed). Thresholds are code policy.
 FAST_MIN_CONFIDENCE: Final = 0.80
 NOUL_YES_THRESHOLD: Final = 0.55
 # Noul has no separate confidence; values near 0.5 mean yes ≈ no (unsure).

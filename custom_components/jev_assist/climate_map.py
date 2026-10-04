@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import Any, Final
 
+from .local_targets import normalize_numeric_signs
+
 # Jev actions that map to a Home Assistant climate service.
 CLIMATE_ACTION_MAP: Final[dict[str, tuple[str, str]]] = {
     "set_temperature": ("climate", "set_temperature"),
@@ -19,7 +21,9 @@ _TEMP_MAX_C: Final = 35.0
 
 TEMP_UNIT_RE: Final[re.Pattern[str]] = re.compile(
     r"""
-    (?P<value>\d{1,2}(?:[.,]\d)?)
+    (?<![\d.,+\-])
+    (?P<value>(?:[+\-]\s*)?\d+(?:[.,]\d+)?)
+    (?![\d.,])
     \s*
     (?:
         °\s*c(?:elsius)?
@@ -40,7 +44,8 @@ TEMP_BARE_RE: Final[re.Pattern[str]] = re.compile(
         \s*(?:auf|to|=|:)?\s*
         | (?:auf|to)\s+
     )
-    (?P<value>\d{1,2}(?:[.,]\d)?)
+    (?P<value>(?:[+\-]\s*)?\d+(?:[.,]\d+)?)
+    (?![\d.,])
     (?!\s*(?:%|percent|procent|prozent))
     \b
     """,
@@ -72,6 +77,8 @@ _HVAC_MODE_RES: Final[tuple[tuple[re.Pattern[str], str], ...]] = (
 
 
 def _parse_temp_value(raw: str) -> float | None:
+    if not re.fullmatch(r"\d+(?:[.,]\d+)?", raw):
+        return None
     value = float(raw.replace(",", "."))
     if value < _TEMP_MIN_C or value > _TEMP_MAX_C:
         return None
@@ -82,10 +89,11 @@ def _parse_temp_value(raw: str) -> float | None:
 
 def parse_temperature_c(utterance: str) -> float | None:
     """Return a °C setpoint in 5–35 if the utterance contains one."""
-    match = TEMP_UNIT_RE.search(utterance) or TEMP_BARE_RE.search(utterance)
-    if match is None:
+    utterance = normalize_numeric_signs(utterance)
+    matches = list(TEMP_UNIT_RE.finditer(utterance)) or list(TEMP_BARE_RE.finditer(utterance))
+    if len(matches) != 1:
         return None
-    return _parse_temp_value(match.group("value"))
+    return _parse_temp_value(matches[0].group("value"))
 
 
 def parse_hvac_mode(utterance: str) -> str | None:

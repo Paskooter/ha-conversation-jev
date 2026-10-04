@@ -15,5 +15,5 @@
   "requirements": [
     "typesafe-sdk==0.7.2"
   ],
-  "version": "0.2.0b1"
+  "version": "0.3.0b1"
 }

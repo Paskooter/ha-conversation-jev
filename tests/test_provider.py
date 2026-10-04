@@ -111,6 +111,29 @@ async def test_validation_uses_only_synthetic_state(monkeypatch):
     assert "exposed_entities" not in body["state"]
 
 
+async def test_context_is_bounded_to_visible_targets_without_robot_identifiers(monkeypatch):
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return system_one_reply(request)
+
+    sdk_transport(monkeypatch, handler)
+    await TypeSafeJevClient("synthetic", provider="openrouter").classify_with_context(
+        "turn it off",
+        [LIVING_LAMP],
+        language="en",
+        room="Living room",
+        followup_entity_ids=[LIVING_LAMP.entity_id, "light.hidden_synthetic"],
+    )
+    body = json.loads(requests[0].content)
+    assert body["state"]["device_context"] == {"area": "Living room", "target_entity_ids": [LIVING_LAMP.entity_id]}
+    assert len(requests) == 1
+    assert "device_id" not in json.dumps(body)
+    assert "conversation_id" not in json.dumps(body)
+    assert "hidden_synthetic" not in json.dumps(body)
+
+
 @pytest.mark.parametrize(
     "status,exception",
     [(401, TypeSafeAuthenticationError), (429, TypeSafeRateLimitError)],

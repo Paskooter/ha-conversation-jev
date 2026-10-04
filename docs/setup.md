@@ -2,7 +2,7 @@
 
 ## 1. Install Jev Assist
 
-Add `https://github.com/Paskooter/ha-conversation-jev` as an **Integration** in HACS custom repositories. Download prerelease **0.2.0b1** and restart Home Assistant. Add **Jev Assist** in Settings → Devices & services. Choose **OpenRouter** and enter your key from [OpenRouter's API key page](https://openrouter.ai/settings/keys).
+Add `https://github.com/Paskooter/ha-conversation-jev` as an **Integration** in HACS custom repositories. Download prerelease **0.3.0b1** and restart Home Assistant. Add **Jev Assist** in Settings → Devices & services. Choose **OpenRouter** and enter your key from [OpenRouter's API key page](https://openrouter.ai/settings/keys).
 
 Jev is billed to that OpenRouter key. No separate TypeSafe account or OpenRouter chat model setting is required. Setup validates the key with one small synthetic classification request. Provider errors distinguish rejected credentials, rate limits, connectivity and account/model availability. Keys are entered only in Home Assistant.
 
@@ -26,7 +26,7 @@ For the first check, expose only the device you intend to test. Verify the same 
 
 ## 4. Select Jev for Jibo
 
-Update [Phoenix](https://github.com/Paskooter/phoenix-home-assistant) through HACS to **0.1.0b4 or newer** and restart HA. Under **Settings → Devices & services → Phoenix → Configure**, choose **Jev Assist** as Conversation agent and save. Your existing jibo.io link is retained; no new code is needed.
+Update [Phoenix](https://github.com/Paskooter/phoenix-home-assistant) through HACS to **0.2.0b1 or newer** and restart HA. Under **Settings → Devices & services → Phoenix → Configure**, choose **Jev Assist** as Conversation agent and save. Your existing jibo.io link is retained; no new code is needed.
 
 If Phoenix is not linked yet, sign in to [the Phoenix console](https://jibo.io/app#/home-assistant), generate a single-use code for the robots you want to enable, and add Phoenix in HA using that code. Home Assistant connects outward over TLS; no public HA URL or port forwarding is required.
 
@@ -40,6 +40,18 @@ Jibo's home commands explicitly use Phoenix's chosen agent. Merely choosing Jev 
 
 Phoenix's existing command deadline is **7.5 seconds**, including classifier and fallback work. Slow Grok responses can expire. Expired or interrupted work is never replayed, and an unconfirmed action is reported as uncertain. Check the physical state before trying again.
 
+## 5. Room context, state answers and routines
+
+Open **Settings → Devices & services → Phoenix**, select each robot's device, and assign its area. Jev uses the area of the HA device supplied for that turn. “Turn off the lights” or “turn off the lights here” then resolves only exposed lights in that room. Use a full entity name/alias or another room to override it. Unknown qualifiers do not select a similarly named light. Without a registered room, keep naming the intended area or device.
+
+After a successful local command, a follow-up such as “set it to fifty percent” can use that target for 30 seconds when the same device and conversation context are supplied. A separate robot or conversation cannot reuse it. Reloading Jev clears its target context, and Phoenix disconnects, restart or agent changes begin a new conversation. A scene/script cannot become an implicit target for another activation.
+
+Try “is the kitchen light on?”, “what is the kitchen temperature?” or “what is the kitchen blind position?” Supported questions read only exposed current states locally. No Jev provider or fallback tools run for these answers. Unknown values, unavailable devices and missing or ambiguous targets are reported directly. Names, sensor device classes and areas must match HA; this does not inspect unexposed devices or state history.
+
+For color, use a supported named color, such as “set Kitchen Light to blue”, on a color-capable light. Brightness accepts absolute English and German numbers from zero to one hundred; relative “brighter”, dark/pale shades and color temperature remain fallback requests.
+
+Expose only the scene or script you intend Assist to start, give it a distinctive full name or alias, then try “activate Reading Time scene” or “run Evening Prep script”. The exact single routine is started once; its own configuration defines the devices and effects. Jev says “started” and does not promise that every downstream action finished. Phoenix's owner-configured shortcuts can map an exact phrase to one explicitly exposed scene/script; configure those under Phoenix rather than asking an agent to invent a routine.
+
 ## Troubleshooting
 
 - **Sorry, I couldn't understand that:** first verify the name/alias, Kitchen area and Assist exposure, and test the same text in the selected HA agent. Also verify Phoenix is set to Jev, not its default built-in agent.
@@ -47,7 +59,9 @@ Phoenix's existing command deadline is **7.5 seconds**, including classifier and
 - **Jev needs a new API key:** use Jev's reauthentication prompt or Reconfigure to enter a replacement key for the selected provider.
 - **Provider could not serve Jev:** check OpenRouter credit, permissions and System One availability. The integration uses `/api/v1/systemone`, not chat completions; there is no chat model dropdown to repair.
 - **Couldn't confirm the result:** the action may have executed. Inspect the target before issuing another command. Jev and Phoenix do not retry an uncertain action.
-- **Climate, scene or script behaves unexpectedly:** these capabilities come from the original Jev fast path or the selected fallback. Expose only the devices and scripts you want Assist to control. Phoenix still requires an explicit invocation for commands outside its direct home phrase set.
+- **Device does not support color:** check the light's supported color modes. Jev will not report an unsupported color as changed.
+- **No exposed device for a question:** verify the complete name/alias, room, exposure and sensor device class. The question stays local and cannot be handed off to tools that guess a target.
+- **Climate, scene or script behaves unexpectedly:** test the exact device or routine in HA first. A routine's effects are defined by its own configuration. Expose only the devices and scripts you want Assist to control. Phoenix still requires an explicit invocation or owner-configured shortcut for commands outside its direct home phrase set.
 
 ## Upgrade and removal
 
